@@ -1,0 +1,62 @@
+{
+  "name": "React Native VLC Media Player",
+  "rules": [
+    {
+      "pattern": "ios/**/*",
+      "group": "iOS Native Code",
+      "description": "iOS平台原生代码实现"
+    },
+    {
+      "pattern": "android/**/*",
+      "group": "Android Native Code",
+      "description": "Android平台原生代码实现"
+    },
+    {
+      "pattern": "*.js",
+      "group": "JavaScript Source",
+      "description": "JavaScript源代码文件"
+    },
+    {
+      "pattern": "*.ts",
+      "group": "TypeScript Source",
+      "description": "TypeScript源代码文件"
+    },
+    {
+      "pattern": "*.d.ts",
+      "group": "Type Definitions",
+      "description": "TypeScript类型定义文件"
+    },
+    {
+      "pattern": "*.podspec",
+      "group": "iOS Dependencies",
+      "description": "iOS依赖配置文件"
+    },
+    {
+      "pattern": "*.gradle",
+      "group": "Android Dependencies",
+      "description": "Android依赖配置文件"
+    },
+    {
+      "pattern": "*.md",
+      "group": "Documentation",
+      "description": "项目文档"
+    },
+    {
+      "pattern": "expo/**/*",
+      "group": "Expo Configuration",
+      "description": "Expo相关配置文件"
+    },
+    {
+      "pattern": "playerView/**/*",
+      "group": "Player Components",
+      "description": "播放器组件相关代码"
+    }
+  ],
+  "ignore": [
+    "node_modules/**/*",
+    "build/**/*",
+    "dist/**/*",
+    ".git/**/*",
+    "*.log"
+  ]
+} 

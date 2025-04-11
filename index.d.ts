@@ -4,12 +4,23 @@ import { StyleProp, ViewStyle } from "react-native";
 /**
  * Video aspect ratio type
  */
-export type PlayerAspectRatio = "16:9" | "1:1" | "4:3" | "3:2" | "21:9" | "9:16";
+export type PlayerAspectRatio =
+  | "16:9"
+  | "1:1"
+  | "4:3"
+  | "3:2"
+  | "21:9"
+  | "9:16";
 
 /**
  * Video resize mode
  */
-export type PlayerResizeMode = "fill" | "contain" | "cover" | "none" | "scale-down";
+export type PlayerResizeMode =
+  | "fill"
+  | "contain"
+  | "cover"
+  | "none"
+  | "scale-down";
 
 /**
  * VLC Player source configuration options
@@ -21,22 +32,22 @@ export interface VLCPlayerSource {
   uri: string;
   /**
    * VLC Player initialization type
-   * 
+   *
    *  - Default configuration: `1`
    *  - Custom configuration: `2`
-   * 
+   *
    * See `initOptions` for more information
-   * 
+   *
    * @default 1
    */
   initType?: 1 | 2;
   /**
    * https://wiki.videolan.org/VLC_command-line_help/
-   * 
+   *
    * VLC Player initialization options
-   * 
+   *
    * `["--network-caching=50", "--rtsp-tcp"]`
-   * 
+   *
    * @default ["--input-repeat=1000"]
    */
   initOptions?: string[];
@@ -106,9 +117,14 @@ type OnProgressEventProps = Pick<VideoInfo, "duration" | "target"> & {
    * Remaining time to end playback
    */
   remainingTime: number;
+
+  /**
+   * Buffering speed in bytes per second  eg 219 kb/s
+   */
+  bufferingSpeed: number;
 };
 
-type SimpleCallbackEventProps = Pick<VideoInfo, "target">;
+type SimpleCallbackEventProps = Pick<VideoInfo, "target"> & {};
 
 export type VLCPlayerCallbackProps = {
   /**
@@ -166,6 +182,13 @@ export type VLCPlayerCallbackProps = {
    * @param event - Event properties
    */
   onLoad?: (event: VideoInfo) => void;
+  
+  /**
+   * Called when fullscreen mode changes
+   *
+   * @param event - Event properties
+   */
+  onFullScreenChange?: (event: SimpleCallbackEventProps) => void;
 };
 
 export type VLCPlayerProps = VLCPlayerCallbackProps & {
@@ -255,10 +278,16 @@ export type VLCPlayerProps = VLCPlayerCallbackProps & {
 
   /**
    * Enables autoplay
-   * 
+   *
    * @default true
    */
   autoplay?: boolean;
+  
+  /**
+   * Set to `true` or `false` to enable fullscreen mode
+   * @default false
+   */
+  fullScreen?: boolean;
 };
 
 /**

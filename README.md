@@ -78,7 +78,7 @@ Reference: https://code.videolan.org/videolan/vlc-android/-/issues/2252
 
 1. cd to ios
 2. run `pod init` (if only Podfile has not been generated in ios folder)
-3. add `pod 'MobileVLCKit', '3.3.10'` to pod file **(No need if you are running RN 0.61 and up)**
+3. add `pod 'MobileVLCKit', '3.6.0'` to pod file **(No need if you are running RN 0.61 and up)**
 4. run `pod install` (you have to delete the app on the simulator/device and run `react-native run-ios` again)
 
 ### Important

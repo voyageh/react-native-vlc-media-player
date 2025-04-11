@@ -19,7 +19,7 @@ const withMobileVlcKit = (config, options) => {
             const newCode = generateCode.mergeContents({
                 tag: "withVlcMediaPlayer",
                 src: contents,
-                newSrc: "  pod 'MobileVLCKit', '3.3.10'",
+                newSrc: "  pod 'MobileVLCKit', '3.6.0'",
                 anchor: /use\_expo\_modules\!/i,
                 offset: 3,
                 comment: "  #",
