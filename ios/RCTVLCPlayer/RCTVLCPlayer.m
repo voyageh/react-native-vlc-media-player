@@ -285,7 +285,8 @@ static NSString *const playbackRate = @"rate";
                 if (_player.audioTrackIndexes[i] && _player.audioTrackNames[i]) {
                     [tracks addObject:  @{
                         @"id": _player.audioTrackIndexes[i],
-                        @"name":  _player.audioTrackNames[i]
+                        @"name":  _player.audioTrackNames[i],
+                        @"isDefault": [NSNumber numberWithBool:[_player.audioTrackIndexes[i] intValue] == _player.currentAudioTrackIndex]
                     }];
                 }
             }
@@ -298,7 +299,8 @@ static NSString *const playbackRate = @"rate";
                 if (_player.videoSubTitlesIndexes[i] && _player.videoSubTitlesNames[i]) {
                     [tracks addObject:  @{
                         @"id": _player.videoSubTitlesIndexes[i],
-                        @"name":  _player.videoSubTitlesNames[i]
+                        @"name":  _player.videoSubTitlesNames[i],
+                        @"isDefault": [NSNumber numberWithBool:[_player.videoSubTitlesIndexes[i] intValue] == _player.currentVideoSubTitleIndex]
                     }];
                 }
             }

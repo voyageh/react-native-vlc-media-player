@@ -704,6 +704,7 @@ class ReactVlcPlayerView extends TextureView implements
                 WritableMap trackMap = Arguments.createMap();
                 trackMap.putInt("id", track.id);
                 trackMap.putString("name", track.name);
+                trackMap.putBoolean("isDefault", track.id == mMediaPlayer.getAudioTrack());
                 tracks.pushMap(trackMap);
             }
             map.putArray("audioTracks", tracks);
@@ -716,6 +717,7 @@ class ReactVlcPlayerView extends TextureView implements
                 WritableMap trackMap = Arguments.createMap();
                 trackMap.putInt("id", track.id);
                 trackMap.putString("name", track.name);
+                trackMap.putBoolean("isDefault", track.id == mMediaPlayer.getSpuTrack());
                 tracks.pushMap(trackMap);
             }
             map.putArray("textTracks", tracks);

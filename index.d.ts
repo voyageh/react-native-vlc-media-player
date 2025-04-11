@@ -66,6 +66,11 @@ export type Track = {
    * Track name
    */
   name: string;
+
+  /**
+   * Whether the track is the default track
+   */
+  isDefault: boolean;
 };
 
 /**
@@ -182,7 +187,7 @@ export type VLCPlayerCallbackProps = {
    * @param event - Event properties
    */
   onLoad?: (event: VideoInfo) => void;
-  
+
   /**
    * Called when fullscreen mode changes
    *
@@ -282,7 +287,7 @@ export type VLCPlayerProps = VLCPlayerCallbackProps & {
    * @default true
    */
   autoplay?: boolean;
-  
+
   /**
    * Set to `true` or `false` to enable fullscreen mode
    * @default false
