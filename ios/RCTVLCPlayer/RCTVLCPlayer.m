@@ -330,6 +330,7 @@ static NSString *const playbackRate = @"rate";
     if (_player && [_player isSeekable]) {
         if (timeInMS >= 0 && timeInMS <= [_player.media.length intValue]) {
             VLCTime *time = [VLCTime timeWithInt:timeInMS];
+            NSLog(@"setSeekTime: %i", timeInMS);
             [_player setTime:time];
         }
     }
