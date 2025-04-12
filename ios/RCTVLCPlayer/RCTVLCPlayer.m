@@ -111,9 +111,9 @@ static NSString *const playbackRate = @"rate";
     
     // 根据repeat属性设置循环播放
     if (_repeat) {
-        [_player setRepeatMode:VLCRepeatCurrentItem]; // 使用VLC的重复当前项模式
+        [_player.media addOption:@"--input-repeat=1000"];
     } else {
-        [_player setRepeatMode:VLCDoNotRepeat];
+        [_player.media addOption:@"--input-repeat=0"];
     }
     
     [[AVAudioSession sharedInstance] setActive:NO withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation error:nil];
@@ -369,10 +369,10 @@ static NSString *const playbackRate = @"rate";
     if (_player && _player.media) {
         if (repeat) {
             // 设置VLC循环播放模式
-            [_player setRepeatMode:VLCRepeatCurrentItem]; // 使用VLC的重复当前项模式
+            [_player.media addOption:@"--input-repeat=1000"];
         } else {
             // 设置为不重复模式
-            [_player setRepeatMode:VLCDoNotRepeat];
+            [_player.media addOption:@"--input-repeat=0"];
         }
     }
 }
