@@ -234,6 +234,12 @@ export type VLCPlayerProps = VLCPlayerCallbackProps & {
   seek?: number;
 
   /**
+   * Set position to seek to a specific time in milliseconds
+   * This is more accurate than using seek with percentage
+   */
+  seekTime?: number;
+
+  /**
    * Set the volume of the player
    */
   volume?: number;
@@ -298,7 +304,44 @@ export type VLCPlayerProps = VLCPlayerCallbackProps & {
 /**
  * A component that can be used to show a playback
  */
-declare class VLCPlayer extends Component<VLCPlayerProps> {}
+declare class VLCPlayer extends Component<VLCPlayerProps> {
+  /**
+   * Seek to a position between 0 and 1
+   * @param pos Position between 0 and 1 (percentage)
+   */
+  seek(pos: number): void;
+  
+  /**
+   * Seek to a specific time in milliseconds
+   * This is more accurate than using seek with percentage
+   * @param timeInMS Time in milliseconds
+   */
+  seekTime(timeInMS: number): void;
+  
+  /**
+   * Resume or pause playback
+   * @param isResume Whether to resume playback
+   */
+  resume(isResume: boolean): void;
+  
+  /**
+   * Take a snapshot of the current frame
+   * @param path Path to save the snapshot
+   */
+  snapshot(path: string): void;
+  
+  /**
+   * Enable or disable auto aspect ratio
+   * @param isAuto Whether to enable auto aspect ratio
+   */
+  autoAspectRatio(isAuto: boolean): void;
+  
+  /**
+   * Change video aspect ratio
+   * @param ratio Aspect ratio string (e.g. "16:9")
+   */
+  changeVideoAspectRatio(ratio: PlayerAspectRatio): void;
+}
 
 /**
  * A component that renders a playback with additional

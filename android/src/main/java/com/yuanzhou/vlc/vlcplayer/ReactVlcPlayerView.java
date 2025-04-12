@@ -63,6 +63,7 @@ class ReactVlcPlayerView extends TextureView implements
     private boolean isHostPaused = false;
     private int preVolume = 100;
     private boolean autoAspectRatio = false;
+    private boolean repeat = false;
 
     private float mProgressUpdateInterval = 0;
     private Handler mProgressUpdateHandler = new Handler();
@@ -430,6 +431,16 @@ class ReactVlcPlayerView extends TextureView implements
             }
             mVideoInfo = null;
             mMediaPlayer.setMedia(m);
+            
+            // 根据repeat状态设置循环播放
+            if (repeat) {
+                // 使用标准的VLC API设置循环播放模式
+                mMediaPlayer.setRepeatMode(MediaPlayer.RepeatType.REPEAT_CURRENT);
+            } else {
+                // 设置为不重复模式
+                mMediaPlayer.setRepeatMode(MediaPlayer.RepeatType.NONE);
+            }
+            
             m.release();
             mMediaPlayer.setScale(0);
             if (_subtitleUri != null) {
@@ -608,6 +619,16 @@ class ReactVlcPlayerView extends TextureView implements
 
 
     public void setRepeatModifier(boolean repeat) {
+        this.repeat = repeat;
+        if (mMediaPlayer != null && mMediaPlayer.getMedia() != null) {
+            if (repeat) {
+                // 使用标准的VLC API设置循环播放模式
+                mMediaPlayer.setRepeatMode(MediaPlayer.RepeatType.REPEAT_CURRENT);
+            } else {
+                // 设置为不重复模式
+                mMediaPlayer.setRepeatMode(MediaPlayer.RepeatType.NONE);
+            }
+        }
     }
 
 

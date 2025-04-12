@@ -33,6 +33,7 @@ static NSString *const playbackRate = @"rate";
 
     BOOL _paused;
     BOOL _autoplay;
+    BOOL _repeat;
 }
 
 - (instancetype)initWithEventDispatcher:(RCTEventDispatcher *)eventDispatcher
@@ -107,6 +108,13 @@ static NSString *const playbackRate = @"rate";
     // [bavv edit end]
 
     _player.media = [VLCMedia mediaWithURL:uri];
+    
+    // 根据repeat属性设置循环播放
+    if (_repeat) {
+        [_player setRepeatMode:VLCRepeatCurrentItem]; // 使用VLC的重复当前项模式
+    } else {
+        [_player setRepeatMode:VLCDoNotRepeat];
+    }
     
     [[AVAudioSession sharedInstance] setActive:NO withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation error:nil];
 }
@@ -209,20 +217,6 @@ static NSString *const playbackRate = @"rate";
                                       @"seekable": [NSNumber numberWithBool:[_player isSeekable]],
                                       @"duration":[NSNumber numberWithInt:[_player.media.length intValue]]
                                       });
-                break;
-            case VLCMediaPlayerStateEnded:
-                NSLog(@"VLCMediaPlayerStateEnded %i",  _player.numberOfAudioTracks);
-                int currentTime   = [[_player time] intValue];
-                int remainingTime = [[_player remainingTime] intValue];
-                int duration      = [_player.media.length intValue];
-
-                self.onVideoEnded(@{
-                                    @"target": self.reactTag,
-                                    @"currentTime": [NSNumber numberWithInt:currentTime],
-                                    @"remainingTime": [NSNumber numberWithInt:remainingTime],
-                                    @"duration":[NSNumber numberWithInt:duration],
-                                    @"position":[NSNumber numberWithFloat:_player.position]
-                                    });
                 break;
             case VLCMediaPlayerStateError:
                 NSLog(@"VLCMediaPlayerStateError %i", _player.numberOfAudioTracks);
@@ -331,6 +325,16 @@ static NSString *const playbackRate = @"rate";
     }
 }
 
+- (void)setSeekTime:(int)timeInMS
+{
+    if (_player && [_player isSeekable]) {
+        if (timeInMS >= 0 && timeInMS <= [_player.media.length intValue]) {
+            VLCTime *time = [VLCTime timeWithInt:timeInMS];
+            [_player setTime:time];
+        }
+    }
+}
+
 - (void)setSnapshotPath:(NSString*)path
 {
     if (_player)
@@ -356,6 +360,21 @@ static NSString *const playbackRate = @"rate";
 - (void)setVideoAspectRatio:(NSString *)ratio{
     char *char_content = [ratio cStringUsingEncoding:NSASCIIStringEncoding];
     [_player setVideoAspectRatio:char_content];
+}
+
+- (void)setRepeat:(BOOL)repeat
+{
+    _repeat = repeat;
+    
+    if (_player && _player.media) {
+        if (repeat) {
+            // 设置VLC循环播放模式
+            [_player setRepeatMode:VLCRepeatCurrentItem]; // 使用VLC的重复当前项模式
+        } else {
+            // 设置为不重复模式
+            [_player setRepeatMode:VLCDoNotRepeat];
+        }
+    }
 }
 
 - (void)setMuted:(BOOL)value

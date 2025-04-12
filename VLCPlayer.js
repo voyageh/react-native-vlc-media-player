@@ -12,6 +12,7 @@ export default class VLCPlayer extends Component {
   constructor(props, context) {
     super(props, context);
     this.seek = this.seek.bind(this);
+    this.seekTime = this.seekTime.bind(this);
     this.resume = this.resume.bind(this);
     this.snapshot = this.snapshot.bind(this);
     this._assignRoot = this._assignRoot.bind(this);
@@ -37,6 +38,10 @@ export default class VLCPlayer extends Component {
 
   seek(pos) {
     this.setNativeProps({ seek: pos });
+  }
+
+  seekTime(timeInMS) {
+    this.setNativeProps({ seekTime: timeInMS });
   }
 
   resume(isResume) {
@@ -145,7 +150,9 @@ export default class VLCPlayer extends Component {
     source.autoplay = this.props.autoplay;
     source.initOptions = source.initOptions || [];
     //repeat the input media
-    source.initOptions.push("--input-repeat=1000");
+    if (this.props.repeat) {
+      source.initOptions.push("--input-repeat=1000");
+    }
     const nativeProps = Object.assign({}, this.props);
     Object.assign(nativeProps, {
       style: [styles.base, nativeProps.style],
@@ -180,6 +187,7 @@ VLCPlayer.propTypes = {
   /* Native only */
   rate: PropTypes.number,
   seek: PropTypes.number,
+  seekTime: PropTypes.number,
   resume: PropTypes.bool,
   snapshotPath: PropTypes.string,
   paused: PropTypes.bool,
