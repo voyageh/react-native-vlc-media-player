@@ -13,6 +13,7 @@ export default class VLCPlayer extends Component {
     super(props, context);
     this.seek = this.seek.bind(this);
     this.seekTime = this.seekTime.bind(this);
+    this.resizeMode = this.resizeMode.bind(this);
     this.resume = this.resume.bind(this);
     this.snapshot = this.snapshot.bind(this);
     this._assignRoot = this._assignRoot.bind(this);
@@ -38,6 +39,10 @@ export default class VLCPlayer extends Component {
 
   seek(pos) {
     this.setNativeProps({ seek: pos });
+  }
+
+  resizeMode(mode) {
+    this.setNativeProps({ resizeMode: resizeMode });
   }
 
   seekTime(timeInMS) {
