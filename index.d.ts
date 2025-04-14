@@ -15,12 +15,7 @@ export type PlayerAspectRatio =
 /**
  * Video resize mode
  */
-export type PlayerResizeMode =
-  | "fill"
-  | "contain"
-  | "cover"
-  | "none"
-  | "scale-down";
+export type PlayerResizeMode = "contain" | "cover";
 
 /**
  * VLC Player source configuration options
@@ -310,32 +305,32 @@ declare class VLCPlayer extends Component<VLCPlayerProps> {
    * @param pos Position between 0 and 1 (percentage)
    */
   seek(pos: number): void;
-  
+
   /**
    * Seek to a specific time in milliseconds
    * This is more accurate than using seek with percentage
    * @param timeInMS Time in milliseconds
    */
   seekTime(timeInMS: number): void;
-  
+
   /**
    * Resume or pause playback
    * @param isResume Whether to resume playback
    */
   resume(isResume: boolean): void;
-  
+
   /**
    * Take a snapshot of the current frame
    * @param path Path to save the snapshot
    */
   snapshot(path: string): void;
-  
+
   /**
    * Enable or disable auto aspect ratio
    * @param isAuto Whether to enable auto aspect ratio
    */
   autoAspectRatio(isAuto: boolean): void;
-  
+
   /**
    * Change video aspect ratio
    * @param ratio Aspect ratio string (e.g. "16:9")
