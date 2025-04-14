@@ -4,6 +4,7 @@
     "": {
       "name": "react-native-vlc-media-player",
       "dependencies": {
+        "@liixing/react-native-vlc-media-player": "^1.7.1",
         "react-native-slider": "^0.11.0",
         "react-native-vector-icons": "^9.2.0",
       },
@@ -29,6 +30,8 @@
     "@expo/plist": ["@expo/plist@0.0.20", "", { "dependencies": { "@xmldom/xmldom": "~0.7.7", "base64-js": "^1.2.3", "xmlbuilder": "^14.0.0" } }, "sha512-UXQ4LXCfTZ580LDHGJ5q62jSTwJFFJ1GqBu8duQMThiHKWbMJ+gajJh6rsB6EJ3aLUr9wcauxneL5LVRFxwBEA=="],
 
     "@expo/sdk-runtime-versions": ["@expo/sdk-runtime-versions@1.0.0", "", {}, "sha512-Doz2bfiPndXYFPMRwPyGa1k5QaKDVpY806UJj570epIiMzWaYyCtobasyfC++qfIXVb5Ocy7r3tP9d62hAQ7IQ=="],
+
+    "@liixing/react-native-vlc-media-player": ["@liixing/react-native-vlc-media-player@1.7.1", "", { "dependencies": { "react-native-slider": "^0.11.0", "react-native-vector-icons": "^9.2.0" } }, "sha512-ee4++99LjVCXrhYFlR4GO/v3W45TpvZN5Lhrjab0rpCtlxCZjXh6Ch8Duuyo8oedRsslcxtfeMCGON0EEZHo4Q=="],
 
     "@react-native/normalize-color": ["@react-native/normalize-color@2.1.0", "", {}, "sha512-Z1jQI2NpdFJCVgpY+8Dq/Bt3d+YUi1928Q+/CZm/oh66fzM0RUl54vvuXlPJKybH4pdCZey1eDTPaLHkMPNgWA=="],
 
