@@ -394,14 +394,17 @@ static NSString *const playbackRate = @"rate";
 
     float scale = 1.0;
     float screenAspect = screenWidth / screenHeight;
-    float videoAspect = _player.videoSize.width / _player.videoSize.height;
 
-    if (screenAspect > videoAspect) {
-      // 屏幕比视频“更宽”，按宽度匹配，裁剪高度
-      scale = screenWidth / videoWidth;
-    } else {
-      // 屏幕比视频“更高”，按高度匹配，裁剪宽度
-      scale = screenHeight / videoHeight;
+    if (_player.videoSize.width > 0 && _player.videoSize.height > 0) {
+      float videoAspect = _player.videoSize.width / _player.videoSize.height;
+
+      if (screenAspect > videoAspect) {
+        // 屏幕比视频“更宽”，按宽度匹配，裁剪高度
+        scale = screenWidth / videoWidth;
+      } else {
+        // 屏幕比视频“更高”，按高度匹配，裁剪宽度
+        scale = screenHeight / videoHeight;
+      }
     }
 
     float cropWidth = screenWidth * scale;
