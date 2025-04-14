@@ -392,14 +392,15 @@ static NSString *const playbackRate = @"rate";
     } else if (f_ar == .5625) { // AirPlay
       NSLog(
           @"[VLCPlayer] Detected AirPlay format, setting crop geometry to 4:3");
-      _player.videoCropGeometry = "16:9".UTF8String;
+      _player.videoCropGeometry = "16:9";
     } else {
       NSLog(@"[VLCPlayer] Unknown screen format %.4f, setting custom crop "
             @"geometry: %.0f:%.0f",
             f_ar, screen.bounds.size.width, screen.bounds.size.height);
-      _player.videoCropGeometry =
-          [NSString stringWithFormat:@"%.0f:%.0f", screen.bounds.size.width,
-                                    screen.bounds.size.height].UTF8String;
+      NSString *cropGeometry = [NSString stringWithFormat:@"%.0f:%.0f", 
+                               screen.bounds.size.width,
+                               screen.bounds.size.height];
+      _player.videoCropGeometry = cropGeometry.UTF8String;
     }
   } else if ([resizeMode isEqualToString:@"contain"]) {
     NSLog(@"[VLCPlayer] Setting video aspect ratio to NULL (contain mode)");
