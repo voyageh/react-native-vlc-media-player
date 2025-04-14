@@ -10,6 +10,7 @@
 #endif
 #import <AVFoundation/AVFoundation.h>
 #import <UIKit/UIKit.h>
+#import <UIKit/UIDevice.h>
 #import <UIKit/UIWindowScene.h>
 
 static NSString *const statusKeyPath = @"status";
@@ -36,6 +37,7 @@ static NSString *const playbackRate = @"rate";
   BOOL _autoplay;
   BOOL _repeat;
   BOOL _isFullscreen;
+  BOOL _isLandscape;  // 新增变量，用于跟踪当前是否为横屏状态
 
   NSString *_resizeMode;
   UIView *_originalParentView;
@@ -57,9 +59,60 @@ static NSString *const playbackRate = @"rate";
            selector:@selector(applicationWillEnterForeground:)
                name:UIApplicationWillEnterForegroundNotification
              object:nil];
+             
+    // 添加设备旋转的通知监听
+    [[NSNotificationCenter defaultCenter]
+        addObserver:self
+           selector:@selector(deviceOrientationDidChange:)
+               name:UIDeviceOrientationDidChangeNotification
+             object:nil];
+             
+    // 初始化设备方向监听
+    [[UIDevice currentDevice] beginGeneratingDeviceOrientationNotifications];
   }
 
   return self;
+}
+
+// 添加设备方向变化的处理方法
+- (void)deviceOrientationDidChange:(NSNotification *)notification {
+    UIDeviceOrientation orientation = [[UIDevice currentDevice] orientation];
+    
+    // 只处理横屏和竖屏
+    if (UIDeviceOrientationIsLandscape(orientation) || UIDeviceOrientationIsPortrait(orientation)) {
+        BOOL isLandscape = UIDeviceOrientationIsLandscape(orientation);
+        
+        // 仅当方向发生变化时才执行动画
+        if (_isLandscape != isLandscape) {
+            _isLandscape = isLandscape;
+            [self applyOrientationChangeWithAnimation];
+        }
+    }
+}
+
+// 应用旋转动画并适配resizeMode
+- (void)applyOrientationChangeWithAnimation {
+    // 获取屏幕大小
+    CGSize screenSize = [UIScreen mainScreen].bounds.size;
+    
+    // 使用动画执行旋转和调整
+    [UIView animateWithDuration:0.3 animations:^{
+        // 调整视图大小以适应新的屏幕方向
+        if (self->_isLandscape) {
+            // 横屏时，宽度大于高度
+            self.frame = CGRectMake(0, 0, MAX(screenSize.width, screenSize.height), MIN(screenSize.width, screenSize.height));
+        } else {
+            // 竖屏时，高度大于宽度
+            self.frame = CGRectMake(0, 0, MIN(screenSize.width, screenSize.height), MAX(screenSize.width, screenSize.height));
+        }
+        
+        // 更新layout
+        [self setNeedsLayout];
+        [self layoutIfNeeded];
+        
+        // 重新应用resizeMode以确保内容正确显示
+        [self setResizeMode:self->_resizeMode];
+    }];
 }
 
 - (void)applicationWillEnterForeground:(NSNotification *)notification {
@@ -382,8 +435,15 @@ static NSString *const playbackRate = @"rate";
     UIScreen *screen = [UIScreen mainScreen];
     CGRect screenBounds = screen.bounds;
 
-    float screenWidth = screenBounds.size.width;
-    float screenHeight = screenBounds.size.height;
+    // 根据当前方向调整宽高比
+    float screenWidth, screenHeight;
+    if (_isLandscape) {
+        screenWidth = MAX(screenBounds.size.width, screenBounds.size.height);
+        screenHeight = MIN(screenBounds.size.width, screenBounds.size.height);
+    } else {
+        screenWidth = MIN(screenBounds.size.width, screenBounds.size.height);
+        screenHeight = MAX(screenBounds.size.width, screenBounds.size.height);
+    }
 
     float f_ar = screenWidth / screenHeight;
 
@@ -403,8 +463,22 @@ static NSString *const playbackRate = @"rate";
   [self layoutIfNeeded];
 }
 
+// 重写layoutSubviews方法来处理旋转后的布局
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    
+    // 确保视频内容在旋转后正确显示
+    if (_player && _player.drawable == self) {
+        // 重新应用resizeMode以确保内容正确显示
+        [self setResizeMode:_resizeMode];
+    }
+}
+
 - (void)_release {
   [[NSNotificationCenter defaultCenter] removeObserver:self];
+  
+  // 停止设备方向监听
+  [[UIDevice currentDevice] endGeneratingDeviceOrientationNotifications];
 
   if (_player.media)
     [_player stop];
@@ -420,124 +494,6 @@ static NSString *const playbackRate = @"rate";
   NSLog(@"removeFromSuperview");
   [self _release];
   [super removeFromSuperview];
-}
-
-- (void)setFullScreen:(BOOL)isFullScreen {
-  if (isFullScreen) {
-    [self enterFullscreen];
-  } else {
-    [self exitFullscreen];
-  }
-}
-
-- (void)enterFullscreen {
-  if (_isFullscreen)
-    return; // 如果已经是全屏，直接返回
-
-  // 保存当前视图状态，用于退出全屏时恢复
-  _originalParentView = self.superview;
-  _originalFrame = self.frame;
-
-  // 获取应用程序的主窗口
-  UIWindow *window = nil;
-  if (@available(iOS 13.0, *)) {
-    NSArray *scenes = [[UIApplication sharedApplication] connectedScenes];
-    for (UIScene *scene in scenes) {
-      if (scene.activationState == UISceneActivationStateForegroundActive &&
-          [scene isKindOfClass:[UIWindowScene class]]) {
-        UIWindowScene *windowScene = (UIWindowScene *)scene;
-        for (UIWindow *appWindow in windowScene.windows) {
-          if (appWindow.isKeyWindow) {
-            window = appWindow;
-            break;
-          }
-        }
-        if (window)
-          break;
-      }
-    }
-  } else {
-    window = [UIApplication sharedApplication].keyWindow;
-  }
-
-  if (!window)
-    return;
-
-  // 将播放器视图移动到窗口层级，使其全屏显示
-  [self removeFromSuperview];
-  [window addSubview:self];
-
-  // 强制横屏
-  if (@available(iOS 16.0, *)) {
-    // 移除setNeedsUpdateOfSupportedInterfaceOrientations调用，因为这是UIViewController的方法
-    NSArray *array =
-        [[UIApplication sharedApplication].connectedScenes allObjects];
-    UIWindowScene *scene = [array firstObject];
-    UIInterfaceOrientationMask orientation =
-        UIInterfaceOrientationMaskLandscapeRight;
-    UIWindowSceneGeometryPreferencesIOS *geometryPreferences =
-        [[UIWindowSceneGeometryPreferencesIOS alloc]
-            initWithInterfaceOrientations:orientation];
-    [scene requestGeometryUpdateWithPreferences:geometryPreferences
-                                   errorHandler:^(NSError *error) {
-                                      NSLog(@"强制横屏错误:%@", error);
-                                    }];
-  } else {
-    // iOS 16以前的方式
-    NSNumber *orientationTarget =
-        [NSNumber numberWithInteger:UIInterfaceOrientationLandscapeRight];
-    [[UIDevice currentDevice] setValue:orientationTarget forKey:@"orientation"];
-  }
-
-  // 设置播放器视图全屏状态
-  self.frame = window.bounds;
-  _isFullscreen = YES;
-
-  // 触发全屏进入事件
-  if (self.onFullScreenEnter) {
-    self.onFullScreenEnter(@{@"target" : self.reactTag});
-  }
-}
-
-- (void)exitFullscreen {
-  if (!_isFullscreen)
-    return; // 如果不是全屏，直接返回
-
-  // 将播放器视图移回原来的位置
-  [self removeFromSuperview];
-  if (_originalParentView) {
-    [_originalParentView addSubview:self];
-    self.frame = _originalFrame;
-  }
-
-  // 强制竖屏
-  if (@available(iOS 16.0, *)) {
-    // 移除setNeedsUpdateOfSupportedInterfaceOrientations调用，因为这是UIViewController的方法
-    NSArray *array =
-        [[UIApplication sharedApplication].connectedScenes allObjects];
-    UIWindowScene *scene = [array firstObject];
-    UIInterfaceOrientationMask orientation = UIInterfaceOrientationMaskPortrait;
-    UIWindowSceneGeometryPreferencesIOS *geometryPreferences =
-        [[UIWindowSceneGeometryPreferencesIOS alloc]
-            initWithInterfaceOrientations:orientation];
-    [scene requestGeometryUpdateWithPreferences:geometryPreferences
-                                   errorHandler:^(NSError *error) {
-                                      NSLog(@"强制竖屏错误:%@", error);
-                                    }];
-  } else {
-    // iOS 16以前的方式
-    NSNumber *orientationTarget =
-        [NSNumber numberWithInteger:UIInterfaceOrientationPortrait];
-    [[UIDevice currentDevice] setValue:orientationTarget forKey:@"orientation"];
-  }
-
-  // 重置全屏状态
-  _isFullscreen = NO;
-
-  // 触发全屏退出事件
-  if (self.onFullScreenExit) {
-    self.onFullScreenExit(@{@"target" : self.reactTag});
-  }
 }
 
 @end

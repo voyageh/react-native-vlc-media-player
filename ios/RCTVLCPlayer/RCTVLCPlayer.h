@@ -14,8 +14,6 @@
 @property(nonatomic, copy) RCTBubblingEventBlock onVideoOpen;
 @property(nonatomic, copy) RCTBubblingEventBlock onVideoLoadStart;
 @property(nonatomic, copy) RCTBubblingEventBlock onVideoLoad;
-@property(nonatomic, copy) RCTBubblingEventBlock onFullScreenEnter;
-@property(nonatomic, copy) RCTBubblingEventBlock onFullScreenExit;
 @property(nonatomic, assign) BOOL repeat;
 @property(nonatomic, copy) NSString *resizeMode;
 

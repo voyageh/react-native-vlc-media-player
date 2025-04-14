@@ -288,26 +288,6 @@ export type VLCPlayerProps = VLCPlayerCallbackProps & {
    * @default true
    */
   autoplay?: boolean;
-
-  /**
-   * Set to `true` or `false` to enable fullscreen mode
-   * @default false
-   */
-  fullScreen?: boolean;
-
-  /**
-   * Called when fullscreen mode changes
-   *
-   * @param event - Event properties
-   */
-  onFullScreenEnter?: (event: SimpleCallbackEventProps) => void;
-
-  /**
-   * Called when fullscreen mode changes
-   *
-   * @param event - Event properties
-   */
-  onFullScreenExit?: (event: SimpleCallbackEventProps) => void;
 };
 
 /**
