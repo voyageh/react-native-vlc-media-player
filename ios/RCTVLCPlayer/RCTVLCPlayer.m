@@ -461,9 +461,13 @@ static NSString *const playbackRate = @"rate";
                                 }];
   }
 
-  // 设置全屏frame
-  self.frame = CGRectMake(0, 0, MAX(screenSize.width, screenSize.height),
-                          MIN(screenSize.width, screenSize.height));
+  // 设置全屏frame - 修复为横屏模式下的正确尺寸
+  self.frame = CGRectMake(0, 0, screenSize.height, screenSize.width);
+
+  // 确保VLC播放器视图显示正确
+  if (_player) {
+    _player.drawable = self;
+  }
 
   _isFullscreen = YES;
 
@@ -492,17 +496,26 @@ static NSString *const playbackRate = @"rate";
                                 }];
   }
 
-  // 恢复原始状态
-  [self removeFromSuperview];
-  [_originalParentView addSubview:self];
-  self.frame = _originalFrame;
-
-  _isFullscreen = NO;
-
-  // 触发退出全屏事件
-  if (self.onFullScreenExit) {
-    self.onFullScreenExit(@{@"target" : self.reactTag});
-  }
+  // 等待屏幕旋转完成后再恢复视图
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)), 
+                dispatch_get_main_queue(), ^{
+    // 恢复原始状态
+    [self removeFromSuperview];
+    [_originalParentView addSubview:self];
+    self.frame = _originalFrame;
+    
+    // 确保VLC播放器视图显示正确
+    if (_player) {
+      _player.drawable = self;
+    }
+    
+    _isFullscreen = NO;
+    
+    // 触发退出全屏事件
+    if (self.onFullScreenExit) {
+      self.onFullScreenExit(@{@"target" : self.reactTag});
+    }
+  });
 }
 
 @end
