@@ -380,48 +380,41 @@ static NSString *const playbackRate = @"rate";
   _resizeMode = resizeMode;
 
   if ([resizeMode isEqualToString:@"cover"]) {
-    UIScreen *screen = [UIScreen mainScreen];
-    CGRect screenBounds = screen.bounds;
-
-    // 根据当前frame的宽高比确定方向
-    float screenWidth, screenHeight;
-    BOOL isFrameLandscape = self.frame.size.width > self.frame.size.height;
-
-    if (isFrameLandscape) {
-      screenWidth = MAX(screenBounds.size.width, screenBounds.size.height);
-      screenHeight = MIN(screenBounds.size.width, screenBounds.size.height);
-    } else {
-      screenWidth = MIN(screenBounds.size.width, screenBounds.size.height);
-      screenHeight = MAX(screenBounds.size.width, screenBounds.size.height);
-    }
-
-    // 获取视频尺寸并计算裁剪
-    CGSize videoSize = _player.videoSize;
-    if (videoSize.width > 0 && videoSize.height > 0) {
-      float videoAspect = videoSize.width / videoSize.height;
-      float screenAspect = screenWidth / screenHeight;
-      
-      int cropWidth, cropHeight;
-      if (videoAspect > screenAspect) {
-        // 视频较宽，裁剪左右
-        cropHeight = (int)videoSize.height;
-        cropWidth = (int)(cropHeight * screenAspect);
-      } else {
-        // 视频较高，裁剪上下
-        cropWidth = (int)videoSize.width;
-        cropHeight = (int)(cropWidth / screenAspect);
-      }
-      
-      _player.videoCropGeometry = [NSString stringWithFormat:@"%d:%d", cropWidth, cropHeight].UTF8String;
+    // 使用视图的实际尺寸而不是屏幕尺寸
+    CGRect viewBounds = self.bounds;
+    float viewWidth = viewBounds.size.width;
+    float viewHeight = viewBounds.size.height;
+    
+    // 获取视频的原始尺寸
+    CGSize originalVideoSize = _player.videoSize;
+    if (originalVideoSize.width <= 0 || originalVideoSize.height <= 0) {
+      return;
     }
     
+    // 计算视频和视图的宽高比
+    float viewRatio = viewWidth / viewHeight;
+    float videoRatio = originalVideoSize.width / originalVideoSize.height;
+    
+    float cropWidth, cropHeight;
+    if (viewRatio > videoRatio) {
+      // 视图比视频更宽，需要裁剪视频高度
+      cropWidth = originalVideoSize.width;
+      cropHeight = originalVideoSize.width / viewRatio;
+    } else {
+      // 视图比视频更高，需要裁剪视频宽度
+      cropHeight = originalVideoSize.height;
+      cropWidth = originalVideoSize.height * viewRatio;
+    }
+    
+    NSString *cropGeometry = [NSString stringWithFormat:@"%.0f:%.0f", cropWidth, cropHeight];
+    _player.videoCropGeometry = cropGeometry.UTF8String;
     [_player setVideoAspectRatio:NULL];
   } else if ([resizeMode isEqualToString:@"contain"]) {
-    NSLog(@"设置contain模式");
     _player.videoCropGeometry = NULL;
+    [_player setVideoAspectRatio:NULL];
   } else {
-    NSLog(@"设置默认模式");
     _player.videoCropGeometry = NULL;
+    [_player setVideoAspectRatio:NULL];
   }
 
   [self setNeedsLayout];
