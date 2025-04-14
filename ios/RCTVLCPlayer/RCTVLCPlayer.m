@@ -20,6 +20,10 @@ static NSString *const playbackBufferEmptyKeyPath = @"playbackBufferEmpty";
 static NSString *const readyForDisplayKeyPath = @"readyForDisplay";
 static NSString *const playbackRate = @"rate";
 
+// 添加设备方向通知常量（如果需要）
+static NSString *const UIDeviceOrientationDidChangeNotification =
+    @"UIDeviceOrientationDidChangeNotification";
+
 #if !defined(DEBUG) || !(TARGET_IPHONE_SIMULATOR)
 #define NSLog(...)
 #endif
@@ -38,6 +42,7 @@ static NSString *const playbackRate = @"rate";
   BOOL _repeat;
   BOOL _isFullscreen;
   BOOL _isLandscape; // 新增变量，用于跟踪当前是否为横屏状态
+  BOOL _isUpdatingLayout; // 新增变量，防止layoutSubviews中的无限循环
 
   NSString *_resizeMode;
   UIView *_originalParentView;
@@ -59,6 +64,19 @@ static NSString *const playbackRate = @"rate";
            selector:@selector(applicationWillEnterForeground:)
                name:UIApplicationWillEnterForegroundNotification
              object:nil];
+
+    // 添加设备旋转通知监听
+    [[NSNotificationCenter defaultCenter]
+        addObserver:self
+           selector:@selector(orientationDidChange:)
+               name:UIDeviceOrientationDidChangeNotification
+             object:nil];
+
+    // 启用设备方向通知
+    [[UIDevice currentDevice] beginGeneratingDeviceOrientationNotifications];
+
+    // 初始化标志变量
+    _isUpdatingLayout = NO;
   }
 
   return self;
@@ -380,11 +398,15 @@ static NSString *const playbackRate = @"rate";
 
   _resizeMode = resizeMode;
 
+  // 创建动画参数
+  NSString *cropGeometry = nil;
+  BOOL shouldClearCropGeometry = NO;
+
   if ([resizeMode isEqualToString:@"cover"]) {
     UIScreen *screen = [UIScreen mainScreen];
     CGRect screenBounds = screen.bounds;
 
-    // 根据当前frame的宽高比确定方向，而不是依赖_isLandscape变量
+    // 根据当前frame的宽高比确定方向
     float screenWidth, screenHeight;
     BOOL isFrameLandscape = self.frame.size.width > self.frame.size.height;
 
@@ -396,33 +418,66 @@ static NSString *const playbackRate = @"rate";
       screenHeight = MAX(screenBounds.size.width, screenBounds.size.height);
     }
 
-    // 使用当前frame的尺寸而不是屏幕尺寸
-    screenWidth = self.frame.size.width;
-    screenHeight = self.frame.size.height;
-
-    float f_ar = screenWidth / screenHeight;
-
-    NSString *cropGeometry =
+    cropGeometry =
         [NSString stringWithFormat:@"%.0f:%.0f", screenWidth, screenHeight];
-    _player.videoCropGeometry = cropGeometry.UTF8String;
-    [_player setVideoAspectRatio:NULL];
   } else if ([resizeMode isEqualToString:@"contain"]) {
     NSLog(@"设置contain模式");
-    [_player setVideoAspectRatio:NULL];
-    _player.videoCropGeometry = NULL;
+    shouldClearCropGeometry = YES;
   } else {
     NSLog(@"设置默认模式");
-    [_player setVideoAspectRatio:NULL];
-    _player.videoCropGeometry = NULL;
+    shouldClearCropGeometry = YES;
   }
 
-  [self setNeedsLayout];
-  [self layoutIfNeeded];
+  // 使用CATransaction确保动画平滑完成后再应用VLC属性
+  [CATransaction begin];
+  [CATransaction setAnimationDuration:0.25]; // 动画持续时间
+
+  // 添加视图动画
+  [UIView animateWithDuration:0.25
+                        delay:0.0
+                      options:UIViewAnimationOptionCurveEaseInOut
+                   animations:^{
+                     [self setNeedsLayout];
+                     [self layoutIfNeeded];
+                   }
+                   completion:nil];
+
+  // 设置完成回调
+  [CATransaction setCompletionBlock:^{
+    // 动画完成后设置VLC播放器属性
+    if (cropGeometry) {
+      self->_player.videoCropGeometry = cropGeometry.UTF8String;
+      [self->_player setVideoAspectRatio:NULL];
+    } else if (shouldClearCropGeometry) {
+      [self->_player setVideoAspectRatio:NULL];
+      self->_player.videoCropGeometry = NULL;
+    }
+  }];
+
+  [CATransaction commit];
 }
 
 // 重写layoutSubviews方法来处理旋转后的布局
 - (void)layoutSubviews {
   [super layoutSubviews];
+
+  // 当布局变化时（例如旋转），只在必要时重新应用resize模式
+  static CGSize previousSize = CGSizeZero;
+
+  // 只有当尺寸发生变化时才更新（避免频繁更新）
+  if (!CGSizeEqualToSize(previousSize, self.bounds.size) && _player &&
+      _resizeMode && !_isUpdatingLayout) {
+    _isUpdatingLayout = YES;
+    previousSize = self.bounds.size;
+
+    // 延迟一小段时间确保布局已完成
+    dispatch_after(
+        dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)),
+        dispatch_get_main_queue(), ^{
+          [self setResizeMode:_resizeMode];
+          self->_isUpdatingLayout = NO;
+        });
+  }
 }
 
 - (void)_release {
@@ -445,6 +500,25 @@ static NSString *const playbackRate = @"rate";
   NSLog(@"removeFromSuperview");
   [self _release];
   [super removeFromSuperview];
+}
+
+// 设备方向变化时的处理
+- (void)orientationDidChange:(NSNotification *)notification {
+  UIDeviceOrientation orientation = [[UIDevice currentDevice] orientation];
+
+  // 只在真正的横竖屏切换时处理
+  if (UIDeviceOrientationIsLandscape(orientation) ||
+      UIDeviceOrientationIsPortrait(orientation)) {
+    // 延迟一小段时间等待React Native完成布局更新
+    dispatch_after(
+        dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.2 * NSEC_PER_SEC)),
+        dispatch_get_main_queue(), ^{
+          // 旋转时平滑更新resizeMode
+          if (self->_player && self->_resizeMode) {
+            [self setResizeMode:self->_resizeMode];
+          }
+        });
+  }
 }
 
 @end
