@@ -20,10 +20,6 @@ static NSString *const playbackBufferEmptyKeyPath = @"playbackBufferEmpty";
 static NSString *const readyForDisplayKeyPath = @"readyForDisplay";
 static NSString *const playbackRate = @"rate";
 
-// 添加设备方向通知常量（如果需要）
-static NSString *const UIDeviceOrientationDidChangeNotification =
-    @"UIDeviceOrientationDidChangeNotification";
-
 #if !defined(DEBUG) || !(TARGET_IPHONE_SIMULATOR)
 #define NSLog(...)
 #endif
@@ -65,11 +61,11 @@ static NSString *const UIDeviceOrientationDidChangeNotification =
                name:UIApplicationWillEnterForegroundNotification
              object:nil];
 
-    // 添加设备旋转通知监听
+    // 添加设备旋转通知监听 - 直接使用系统常量
     [[NSNotificationCenter defaultCenter]
         addObserver:self
            selector:@selector(orientationDidChange:)
-               name:UIDeviceOrientationDidChangeNotification
+               name:@"UIDeviceOrientationDidChangeNotification"
              object:nil];
 
     // 启用设备方向通知
@@ -462,7 +458,11 @@ static NSString *const UIDeviceOrientationDidChangeNotification =
   [super layoutSubviews];
 
   // 当布局变化时（例如旋转），只在必要时重新应用resize模式
-  static CGSize previousSize = CGSizeZero;
+
+  static CGSize previousSize = {0, 0};
+  if (CGSizeEqualToSize(previousSize, CGSizeZero)) {
+    previousSize = CGSizeZero;
+  }
 
   // 只有当尺寸发生变化时才更新（避免频繁更新）
   if (!CGSizeEqualToSize(previousSize, self.bounds.size) && _player &&
