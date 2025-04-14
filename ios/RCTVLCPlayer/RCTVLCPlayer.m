@@ -446,18 +446,19 @@ static NSString *const playbackRate = @"rate";
   [self removeFromSuperview];
   [window addSubview:self];
 
-  // 使用新的 API 设置屏幕方向
-  if (@available(iOS 13.0, *)) {
-    UIWindowScene *windowScene = (UIWindowScene *)window.windowScene;
-    if (windowScene) {
-      UIWindowSceneGeometryPreferencesIOS *preferences = [[UIWindowSceneGeometryPreferencesIOS alloc] initWithInterfaceOrientations:UIInterfaceOrientationMaskLandscapeRight];
-      [windowScene requestGeometryUpdateWithPreferences:preferences errorHandler:^(NSError * _Nonnull error) {
-        NSLog(@"Failed to update interface orientation: %@", error);
-      }];
-    }
-  } else {
-    // 旧版本的回退方案
-    [[UIDevice currentDevice] setValue:@(UIInterfaceOrientationLandscapeRight) forKey:@"orientation"];
+  UIWindowScene *windowScene = (UIWindowScene *)window.windowScene;
+  if (windowScene) {
+    UIWindowSceneGeometryPreferencesIOS *preferences =
+        [[UIWindowSceneGeometryPreferencesIOS alloc]
+            initWithInterfaceOrientations:
+                UIInterfaceOrientationMaskLandscapeRight];
+    [windowScene
+        requestGeometryUpdateWithPreferences:preferences
+                                errorHandler:^(NSError *_Nonnull error) {
+                                  NSLog(@"Failed to update interface "
+                                        @"orientation: %@",
+                                        error);
+                                }];
   }
 
   // 设置全屏frame
@@ -477,17 +478,18 @@ static NSString *const playbackRate = @"rate";
     return;
 
   // 使用新的 API 恢复屏幕方向
-  if (@available(iOS 13.0, *)) {
-    UIWindowScene *windowScene = (UIWindowScene *)self.window.windowScene;
-    if (windowScene) {
-      UIWindowSceneGeometryPreferencesIOS *preferences = [[UIWindowSceneGeometryPreferencesIOS alloc] initWithInterfaceOrientations:UIInterfaceOrientationMaskPortrait];
-      [windowScene requestGeometryUpdateWithPreferences:preferences errorHandler:^(NSError * _Nonnull error) {
-        NSLog(@"Failed to update interface orientation: %@", error);
-      }];
-    }
-  } else {
-    // 旧版本的回退方案
-    [[UIDevice currentDevice] setValue:@(UIInterfaceOrientationPortrait) forKey:@"orientation"];
+  UIWindowScene *windowScene = (UIWindowScene *)self.window.windowScene;
+  if (windowScene) {
+    UIWindowSceneGeometryPreferencesIOS *preferences =
+        [[UIWindowSceneGeometryPreferencesIOS alloc]
+            initWithInterfaceOrientations:UIInterfaceOrientationMaskPortrait];
+    [windowScene
+        requestGeometryUpdateWithPreferences:preferences
+                                errorHandler:^(NSError *_Nonnull error) {
+                                  NSLog(@"Failed to update interface "
+                                        @"orientation: %@",
+                                        error);
+                                }];
   }
 
   // 恢复原始状态
