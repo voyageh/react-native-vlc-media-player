@@ -469,7 +469,7 @@ static NSString *const playbackRate = @"rate";
 
   // 强制横屏
   if (@available(iOS 16.0, *)) {
-    [self setNeedsUpdateOfSupportedInterfaceOrientations];
+    // 移除setNeedsUpdateOfSupportedInterfaceOrientations调用，因为这是UIViewController的方法
     NSArray *array =
         [[UIApplication sharedApplication].connectedScenes allObjects];
     UIWindowScene *scene = [array firstObject];
@@ -480,8 +480,8 @@ static NSString *const playbackRate = @"rate";
             initWithInterfaceOrientations:orientation];
     [scene requestGeometryUpdateWithPreferences:geometryPreferences
                                    errorHandler:^(NSError *error) {
-                                     NSLog(@"强制横屏错误:%@", error);
-                                   }];
+                                      NSLog(@"强制横屏错误:%@", error);
+                                    }];
   } else {
     // iOS 16以前的方式
     NSNumber *orientationTarget =
@@ -512,7 +512,7 @@ static NSString *const playbackRate = @"rate";
 
   // 强制竖屏
   if (@available(iOS 16.0, *)) {
-    [self setNeedsUpdateOfSupportedInterfaceOrientations];
+    // 移除setNeedsUpdateOfSupportedInterfaceOrientations调用，因为这是UIViewController的方法
     NSArray *array =
         [[UIApplication sharedApplication].connectedScenes allObjects];
     UIWindowScene *scene = [array firstObject];
@@ -522,8 +522,8 @@ static NSString *const playbackRate = @"rate";
             initWithInterfaceOrientations:orientation];
     [scene requestGeometryUpdateWithPreferences:geometryPreferences
                                    errorHandler:^(NSError *error) {
-                                     NSLog(@"强制竖屏错误:%@", error);
-                                   }];
+                                      NSLog(@"强制竖屏错误:%@", error);
+                                    }];
   } else {
     // iOS 16以前的方式
     NSNumber *orientationTarget =
