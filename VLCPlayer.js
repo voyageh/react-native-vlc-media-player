@@ -11,6 +11,7 @@ import resolveAssetSource from "react-native/Libraries/Image/resolveAssetSource"
 export default class VLCPlayer extends Component {
   constructor(props, context) {
     super(props, context);
+    this.fullScreen = this.fullScreen.bind(this);
     this.seek = this.seek.bind(this);
     this.seekTime = this.seekTime.bind(this);
     this.resizeMode = this.resizeMode.bind(this);
@@ -28,6 +29,8 @@ export default class VLCPlayer extends Component {
     this._onLoadStart = this._onLoadStart.bind(this);
     this._onLoad = this._onLoad.bind(this);
     this.changeVideoAspectRatio = this.changeVideoAspectRatio.bind(this);
+    this._onFullScreenEnter = this._onFullScreenEnter.bind(this);
+    this._onFullScreenExit = this._onFullScreenExit.bind(this);
   }
   static defaultProps = {
     autoplay: true,
@@ -35,6 +38,10 @@ export default class VLCPlayer extends Component {
 
   setNativeProps(nativeProps) {
     this._root.setNativeProps(nativeProps);
+  }
+
+  fullScreen(isFullScreen) {
+    this.setNativeProps({ fullScreen: isFullScreen });
   }
 
   seek(pos) {
@@ -130,6 +137,18 @@ export default class VLCPlayer extends Component {
     }
   }
 
+  _onFullScreenEnter(event) {
+    if (this.props.onFullScreenEnter) {
+      this.props.onFullScreenEnter(event.nativeEvent);
+    }
+  }
+
+  _onFullScreenExit(event) {
+    if (this.props.onFullScreenExit) {
+      this.props.onFullScreenExit(event.nativeEvent);
+    }
+  }
+
   render() {
     /* const {
      source
@@ -170,6 +189,7 @@ export default class VLCPlayer extends Component {
         mainVer: source.mainVer || 0,
         patchVer: source.patchVer || 0,
       },
+      fullScreen: this.props.fullScreen || false,
       onVideoLoadStart: this._onLoadStart,
       onVideoOpen: this._onOpen,
       onVideoError: this._onError,
@@ -181,6 +201,8 @@ export default class VLCPlayer extends Component {
       onVideoStopped: this._onStopped,
       onVideoBuffering: this._onBuffering,
       onVideoLoad: this._onLoad,
+      onFullScreenEnter: this._onFullScreenEnter,
+      onFullScreenExit: this._onFullScreenExit,
       progressUpdateInterval: this.props.onProgress ? 250 : 0,
     });
 
@@ -196,6 +218,7 @@ VLCPlayer.propTypes = {
   resume: PropTypes.bool,
   snapshotPath: PropTypes.string,
   paused: PropTypes.bool,
+  fullScreen: PropTypes.bool,
 
   autoAspectRatio: PropTypes.bool,
   videoAspectRatio: PropTypes.string,
@@ -221,6 +244,8 @@ VLCPlayer.propTypes = {
   onVideoBuffering: PropTypes.func,
   onVideoOpen: PropTypes.func,
   onVideoLoad: PropTypes.func,
+  onFullScreenEnter: PropTypes.func,
+  onFullScreenExit: PropTypes.func,
 
   /* Wrapper component */
   source: PropTypes.oneOfType([PropTypes.object, PropTypes.number]),

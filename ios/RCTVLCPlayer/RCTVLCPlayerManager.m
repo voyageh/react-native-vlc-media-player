@@ -25,6 +25,8 @@ RCT_EXPORT_VIEW_PROPERTY(onVideoError, RCTDirectEventBlock);
 RCT_EXPORT_VIEW_PROPERTY(onVideoOpen, RCTDirectEventBlock);
 RCT_EXPORT_VIEW_PROPERTY(onVideoLoadStart, RCTDirectEventBlock);
 RCT_EXPORT_VIEW_PROPERTY(onVideoLoad, RCTDirectEventBlock);
+RCT_EXPORT_VIEW_PROPERTY(onFullScreenEnter, RCTDirectEventBlock);
+RCT_EXPORT_VIEW_PROPERTY(onFullScreenExit, RCTDirectEventBlock);
 
 - (dispatch_queue_t)methodQueue {
   return dispatch_get_main_queue();
@@ -48,5 +50,6 @@ RCT_EXPORT_VIEW_PROPERTY(textTrack, int);
 RCT_EXPORT_VIEW_PROPERTY(autoplay, BOOL);
 RCT_EXPORT_VIEW_PROPERTY(repeat, BOOL);
 RCT_EXPORT_VIEW_PROPERTY(resizeMode, NSString);
+RCT_EXPORT_VIEW_PROPERTY(fullScreen, BOOL);
 
 @end
