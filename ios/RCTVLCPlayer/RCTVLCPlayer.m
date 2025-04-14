@@ -121,10 +121,10 @@ static NSString *const playbackRate = @"rate";
 
 - (void)setAutoplay:(BOOL)autoplay {
   _autoplay = autoplay;
-    // 设置视频源后应用当前的resizeMode
-    if (_resizeMode) {
-      [self setResizeMode:_resizeMode];
-    }
+  // 设置视频源后应用当前的resizeMode
+  if (_resizeMode) {
+    [self setResizeMode:_resizeMode];
+  }
   if (autoplay)
     [self play];
 }
@@ -311,10 +311,23 @@ static NSString *const playbackRate = @"rate";
 
 - (void)setSeekTime:(int)timeInMS {
   if (_player && [_player isSeekable]) {
+    NSLog(@"setSeekTime input (ms): %i", timeInMS);
     if (timeInMS >= 0 && timeInMS <= [_player.media.length intValue]) {
-      VLCTime *time = [VLCTime timeWithInt:timeInMS];
-      NSLog(@"setSeekTime: %i", timeInMS);
+      // 将毫秒转换为微秒，因为VLC内部使用微秒
+      long long timeInMicroSeconds = (long long)timeInMS * 1000;
+      VLCTime *time = [VLCTime
+          timeWithNumber:[NSNumber numberWithLongLong:timeInMicroSeconds]];
+      NSLog(@"Setting time to microseconds: %lld", timeInMicroSeconds);
       [_player setTime:time];
+
+      // 验证设置后的时间
+      dispatch_after(
+          dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)),
+          dispatch_get_main_queue(), ^{
+            long long currentTimeMicros = [[_player.time value] longLongValue];
+            NSLog(@"Current time after seek (ms): %lld",
+                  currentTimeMicros / 1000);
+          });
     }
   }
 }
@@ -373,10 +386,24 @@ static NSString *const playbackRate = @"rate";
 
   if ([resizeMode isEqualToString:@"cover"]) {
     UIScreen *screen = [UIScreen mainScreen];
-    float f_ar = screen.bounds.size.width / screen.bounds.size.height;
+    CGRect screenBounds = screen.bounds;
+
+    // 获取当前设备方向
+    UIDeviceOrientation orientation = [[UIDevice currentDevice] orientation];
+    float screenWidth = screenBounds.size.width;
+    float screenHeight = screenBounds.size.height;
+
+    // 根据方向调整宽高比
+    if (UIDeviceOrientationIsLandscape(orientation)) {
+      float temp = screenWidth;
+      screenWidth = screenHeight;
+      screenHeight = temp;
+    }
+
+    float f_ar = screenWidth / screenHeight;
     NSLog(@"[VLCPlayer] Screen dimensions - width: %.2f, height: %.2f, aspect "
-          @"ratio: %.4f",
-          screen.bounds.size.width, screen.bounds.size.height, f_ar);
+          @"ratio: %.4f, orientation: %ld",
+          screenWidth, screenHeight, f_ar, (long)orientation);
 
     if (f_ar == (float)(640. / 1136.)) { // iPhone 5 aka 16:9.01
       NSLog(@"[VLCPlayer] Detected iPhone 5 format, setting crop geometry to "
@@ -396,10 +423,9 @@ static NSString *const playbackRate = @"rate";
     } else {
       NSLog(@"[VLCPlayer] Unknown screen format %.4f, setting custom crop "
             @"geometry: %.0f:%.0f",
-            f_ar, screen.bounds.size.width, screen.bounds.size.height);
-      NSString *cropGeometry = [NSString stringWithFormat:@"%.0f:%.0f", 
-                               screen.bounds.size.width,
-                               screen.bounds.size.height];
+            f_ar, screenWidth, screenHeight);
+      NSString *cropGeometry =
+          [NSString stringWithFormat:@"%.0f:%.0f", screenWidth, screenHeight];
       _player.videoCropGeometry = cropGeometry.UTF8String;
     }
   } else if ([resizeMode isEqualToString:@"contain"]) {
