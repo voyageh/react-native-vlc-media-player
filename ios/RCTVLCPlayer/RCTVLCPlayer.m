@@ -9,6 +9,9 @@
 #import <MobileVLCKit/MobileVLCKit.h>
 #endif
 #import <AVFoundation/AVFoundation.h>
+#import <UIKit/UIKit.h>
+#import <UIKit/UIWindowScene.h>
+
 static NSString *const statusKeyPath = @"status";
 static NSString *const playbackLikelyToKeepUpKeyPath =
     @"playbackLikelyToKeepUp";
@@ -443,10 +446,19 @@ static NSString *const playbackRate = @"rate";
   [self removeFromSuperview];
   [window addSubview:self];
 
-  // 强制横屏
-  NSNumber *value =
-      [NSNumber numberWithInt:UIInterfaceOrientationLandscapeRight];
-  [[UIDevice currentDevice] setValue:value forKey:@"orientation"];
+  // 使用新的 API 设置屏幕方向
+  if (@available(iOS 13.0, *)) {
+    UIWindowScene *windowScene = (UIWindowScene *)window.windowScene;
+    if (windowScene) {
+      UIWindowSceneGeometryPreferencesIOS *preferences = [[UIWindowSceneGeometryPreferencesIOS alloc] initWithInterfaceOrientations:UIInterfaceOrientationMaskLandscapeRight];
+      [windowScene requestGeometryUpdateWithPreferences:preferences errorHandler:^(NSError * _Nonnull error) {
+        NSLog(@"Failed to update interface orientation: %@", error);
+      }];
+    }
+  } else {
+    // 旧版本的回退方案
+    [[UIDevice currentDevice] setValue:@(UIInterfaceOrientationLandscapeRight) forKey:@"orientation"];
+  }
 
   // 设置全屏frame
   self.frame = CGRectMake(0, 0, MAX(screenSize.width, screenSize.height),
@@ -464,9 +476,19 @@ static NSString *const playbackRate = @"rate";
   if (!_isFullscreen)
     return;
 
-  // 恢复竖屏
-  NSNumber *value = [NSNumber numberWithInt:UIInterfaceOrientationPortrait];
-  [[UIDevice currentDevice] setValue:value forKey:@"orientation"];
+  // 使用新的 API 恢复屏幕方向
+  if (@available(iOS 13.0, *)) {
+    UIWindowScene *windowScene = (UIWindowScene *)self.window.windowScene;
+    if (windowScene) {
+      UIWindowSceneGeometryPreferencesIOS *preferences = [[UIWindowSceneGeometryPreferencesIOS alloc] initWithInterfaceOrientations:UIInterfaceOrientationMaskPortrait];
+      [windowScene requestGeometryUpdateWithPreferences:preferences errorHandler:^(NSError * _Nonnull error) {
+        NSLog(@"Failed to update interface orientation: %@", error);
+      }];
+    }
+  } else {
+    // 旧版本的回退方案
+    [[UIDevice currentDevice] setValue:@(UIInterfaceOrientationPortrait) forKey:@"orientation"];
+  }
 
   // 恢复原始状态
   [self removeFromSuperview];
