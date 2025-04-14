@@ -419,62 +419,66 @@ static NSString *const playbackRate = @"rate";
   [super removeFromSuperview];
 }
 
-- (void)toggleFullscreen {
-    if (!_isFullscreen) {
-        [self enterFullscreen];
-    } else {
-        [self exitFullscreen];
-    }
+- (void)setFullScreen:(BOOL)isFullScreen {
+  if (isFullScreen) {
+    [self enterFullscreen];
+  } else {
+    [self exitFullscreen];
+  }
 }
 
 - (void)enterFullscreen {
-    if (_isFullscreen) return;
-    
-    // 保存当前状态
-    _originalParentView = self.superview;
-    _originalFrame = self.frame;
-    
-    // 获取窗口和屏幕尺寸
-    UIWindow *window = [UIApplication sharedApplication].keyWindow;
-    CGSize screenSize = [UIScreen mainScreen].bounds.size;
-    
-    // 将播放器视图添加到窗口
-    [self removeFromSuperview];
-    [window addSubview:self];
-    
-    // 强制横屏
-    NSNumber *value = [NSNumber numberWithInt:UIInterfaceOrientationLandscapeRight];
-    [[UIDevice currentDevice] setValue:value forKey:@"orientation"];
-    
-    // 设置全屏frame
-    self.frame = CGRectMake(0, 0, MAX(screenSize.width, screenSize.height), MIN(screenSize.width, screenSize.height));
-    
-    _isFullscreen = YES;
-    
-    // 触发全屏事件
-    if (self.onFullScreenEnter) {
-        self.onFullScreenEnter(@{@"target": self.reactTag});
-    }
+  if (_isFullscreen)
+    return;
+
+  // 保存当前状态
+  _originalParentView = self.superview;
+  _originalFrame = self.frame;
+
+  // 获取窗口和屏幕尺寸
+  UIWindow *window = [UIApplication sharedApplication].keyWindow;
+  CGSize screenSize = [UIScreen mainScreen].bounds.size;
+
+  // 将播放器视图添加到窗口
+  [self removeFromSuperview];
+  [window addSubview:self];
+
+  // 强制横屏
+  NSNumber *value =
+      [NSNumber numberWithInt:UIInterfaceOrientationLandscapeRight];
+  [[UIDevice currentDevice] setValue:value forKey:@"orientation"];
+
+  // 设置全屏frame
+  self.frame = CGRectMake(0, 0, MAX(screenSize.width, screenSize.height),
+                          MIN(screenSize.width, screenSize.height));
+
+  _isFullscreen = YES;
+
+  // 触发全屏事件
+  if (self.onFullScreenEnter) {
+    self.onFullScreenEnter(@{@"target" : self.reactTag});
+  }
 }
 
 - (void)exitFullscreen {
-    if (!_isFullscreen) return;
-    
-    // 恢复竖屏
-    NSNumber *value = [NSNumber numberWithInt:UIInterfaceOrientationPortrait];
-    [[UIDevice currentDevice] setValue:value forKey:@"orientation"];
-    
-    // 恢复原始状态
-    [self removeFromSuperview];
-    [_originalParentView addSubview:self];
-    self.frame = _originalFrame;
-    
-    _isFullscreen = NO;
-    
-    // 触发退出全屏事件
-    if (self.onFullScreenExit) {
-        self.onFullScreenExit(@{@"target": self.reactTag});
-    }
+  if (!_isFullscreen)
+    return;
+
+  // 恢复竖屏
+  NSNumber *value = [NSNumber numberWithInt:UIInterfaceOrientationPortrait];
+  [[UIDevice currentDevice] setValue:value forKey:@"orientation"];
+
+  // 恢复原始状态
+  [self removeFromSuperview];
+  [_originalParentView addSubview:self];
+  self.frame = _originalFrame;
+
+  _isFullscreen = NO;
+
+  // 触发退出全屏事件
+  if (self.onFullScreenExit) {
+    self.onFullScreenExit(@{@"target" : self.reactTag});
+  }
 }
 
 @end
