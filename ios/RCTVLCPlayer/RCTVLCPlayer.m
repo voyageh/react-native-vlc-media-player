@@ -59,97 +59,9 @@ static NSString *const playbackRate = @"rate";
            selector:@selector(applicationWillEnterForeground:)
                name:UIApplicationWillEnterForegroundNotification
              object:nil];
-
-    // 添加设备旋转的通知监听
-    [[NSNotificationCenter defaultCenter]
-        addObserver:self
-           selector:@selector(deviceOrientationDidChange:)
-               name:UIDeviceOrientationDidChangeNotification
-             object:nil];
-
-    // 初始化设备方向监听
-    [[UIDevice currentDevice] beginGeneratingDeviceOrientationNotifications];
-    
-    // 初始化方向状态
-    UIDeviceOrientation currentOrientation = [[UIDevice currentDevice] orientation];
-    _isLandscape = UIDeviceOrientationIsLandscape(currentOrientation);
-    
-    NSLog(@"RCTVLCPlayer 初始化, 当前方向: %@", _isLandscape ? @"横屏" : @"竖屏");
   }
 
   return self;
-}
-
-// 添加设备方向变化的处理方法
-- (void)deviceOrientationDidChange:(NSNotification *)notification {
-    UIDeviceOrientation orientation = [[UIDevice currentDevice] orientation];
-    
-    NSLog(@"设备方向变化: %ld", (long)orientation);
-    
-    // 只处理横屏和竖屏
-    if (UIDeviceOrientationIsLandscape(orientation) ||
-        UIDeviceOrientationIsPortrait(orientation)) {
-        BOOL isLandscape = UIDeviceOrientationIsLandscape(orientation);
-        
-        NSLog(@"有效方向变化: %@", isLandscape ? @"横屏" : @"竖屏");
-        
-        // 仅当方向发生变化时才执行动画
-        if (_isLandscape != isLandscape) {
-            NSLog(@"方向状态改变: %@ -> %@", 
-                  _isLandscape ? @"横屏" : @"竖屏", 
-                  isLandscape ? @"横屏" : @"竖屏");
-            
-            _isLandscape = isLandscape;
-            
-            // 在主线程执行动画
-            dispatch_async(dispatch_get_main_queue(), ^{
-                [self applyOrientationChangeWithAnimation];
-            });
-        }
-    }
-}
-
-// 应用旋转动画并适配resizeMode
-- (void)applyOrientationChangeWithAnimation {
-    // 获取屏幕大小
-    CGSize screenSize = [UIScreen mainScreen].bounds.size;
-    
-    NSLog(@"开始执行旋转动画, 屏幕尺寸: %.0f x %.0f", screenSize.width, screenSize.height);
-    
-    // 计算新的frame
-    CGRect newFrame;
-    if (_isLandscape) {
-        // 横屏时，宽度大于高度
-        newFrame = CGRectMake(0, 0, 
-                            MAX(screenSize.width, screenSize.height),
-                            MIN(screenSize.width, screenSize.height));
-    } else {
-        // 竖屏时，高度大于宽度
-        newFrame = CGRectMake(0, 0, 
-                            MIN(screenSize.width, screenSize.height),
-                            MAX(screenSize.width, screenSize.height));
-    }
-    
-    NSLog(@"动画目标frame: {{%.0f, %.0f}, {%.0f, %.0f}}", 
-          newFrame.origin.x, newFrame.origin.y, 
-          newFrame.size.width, newFrame.size.height);
-    
-    // 使用CABasicAnimation创建动画
-    [UIView animateWithDuration:0.3
-                     animations:^{
-                       self.frame = newFrame;
-                       // 更新layout
-                       [self setNeedsLayout];
-                     }
-                     completion:^(BOOL finished) {
-                       if (finished) {
-                         NSLog(@"旋转动画完成");
-                         // 动画完成后更新resizeMode
-                         if (self->_player) {
-                           [self setResizeMode:self->_resizeMode];
-                         }
-                       }
-                     }];
 }
 
 - (void)applicationWillEnterForeground:(NSNotification *)notification {
@@ -466,18 +378,17 @@ static NSString *const playbackRate = @"rate";
     return;
   }
 
-  NSLog(@"设置resizeMode: %@, 当前方向: %@", 
-        resizeMode, _isLandscape ? @"横屏" : @"竖屏");
-
   _resizeMode = resizeMode;
 
   if ([resizeMode isEqualToString:@"cover"]) {
     UIScreen *screen = [UIScreen mainScreen];
     CGRect screenBounds = screen.bounds;
 
-    // 根据当前方向调整宽高比
+    // 根据当前frame的宽高比确定方向，而不是依赖_isLandscape变量
     float screenWidth, screenHeight;
-    if (_isLandscape) {
+    BOOL isFrameLandscape = self.frame.size.width > self.frame.size.height;
+
+    if (isFrameLandscape) {
       screenWidth = MAX(screenBounds.size.width, screenBounds.size.height);
       screenHeight = MIN(screenBounds.size.width, screenBounds.size.height);
     } else {
@@ -485,8 +396,11 @@ static NSString *const playbackRate = @"rate";
       screenHeight = MAX(screenBounds.size.width, screenBounds.size.height);
     }
 
+    // 使用当前frame的尺寸而不是屏幕尺寸
+    screenWidth = self.frame.size.width;
+    screenHeight = self.frame.size.height;
+
     float f_ar = screenWidth / screenHeight;
-    NSLog(@"设置cover模式，宽高比: %.2f (%.0f:%.0f)", f_ar, screenWidth, screenHeight);
 
     NSString *cropGeometry =
         [NSString stringWithFormat:@"%.0f:%.0f", screenWidth, screenHeight];
@@ -501,21 +415,19 @@ static NSString *const playbackRate = @"rate";
     [_player setVideoAspectRatio:NULL];
     _player.videoCropGeometry = NULL;
   }
-  
+
   [self setNeedsLayout];
+  [self layoutIfNeeded];
 }
 
 // 重写layoutSubviews方法来处理旋转后的布局
 - (void)layoutSubviews {
   [super layoutSubviews];
-  NSLog(@"layoutSubviews调用, frame: {{%.0f, %.0f}, {%.0f, %.0f}}",
-        self.frame.origin.x, self.frame.origin.y,
-        self.frame.size.width, self.frame.size.height);
 }
 
 - (void)_release {
   [[NSNotificationCenter defaultCenter] removeObserver:self];
-  
+
   // 停止设备方向监听
   [[UIDevice currentDevice] endGeneratingDeviceOrientationNotifications];
 
