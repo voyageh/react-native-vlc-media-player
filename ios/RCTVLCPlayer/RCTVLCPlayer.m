@@ -117,14 +117,13 @@ static NSString *const playbackRate = @"rate";
         setActive:NO
       withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation
             error:nil];
+
+  // 初始化后应用当前的resizeMode
+
+  [self setResizeMode:_resizeMode];
 }
 
 - (void)setAutoplay:(BOOL)autoplay {
-  _autoplay = autoplay;
-  // 设置视频源后应用当前的resizeMode
-  if (_resizeMode) {
-    [self setResizeMode:_resizeMode];
-  }
   if (autoplay)
     [self play];
 }
@@ -175,31 +174,25 @@ static NSString *const playbackRate = @"rate";
     VLCMediaPlayerState state = _player.state;
     switch (state) {
     case VLCMediaPlayerStateOpening:
-      NSLog(@"VLCMediaPlayerStateOpening  %i", _player.numberOfAudioTracks);
       self.onVideoOpen(@{@"target" : self.reactTag});
       self.onVideoLoadStart(@{@"target" : self.reactTag});
       break;
     case VLCMediaPlayerStatePaused:
       _paused = YES;
-      NSLog(@"VLCMediaPlayerStatePaused %i", _player.numberOfAudioTracks);
       self.onVideoPaused(@{@"target" : self.reactTag});
       break;
     case VLCMediaPlayerStateStopped:
-      NSLog(@"VLCMediaPlayerStateStopped %i", _player.numberOfAudioTracks);
       self.onVideoStopped(@{@"target" : self.reactTag});
       break;
     case VLCMediaPlayerStateBuffering:
-      NSLog(@"VLCMediaPlayerStateBuffering %i", _player.numberOfAudioTracks);
       if (!_videoInfo && _player.numberOfAudioTracks > 0) {
         _videoInfo = [self getVideoInfo];
         self.onVideoLoad(_videoInfo);
       }
-
       self.onVideoBuffering(@{@"target" : self.reactTag});
       break;
     case VLCMediaPlayerStatePlaying:
       _paused = NO;
-      NSLog(@"VLCMediaPlayerStatePlaying %i", _player.numberOfAudioTracks);
       self.onVideoPlaying(@{
         @"target" : self.reactTag,
         @"seekable" : [NSNumber numberWithBool:[_player isSeekable]],
@@ -207,7 +200,6 @@ static NSString *const playbackRate = @"rate";
       });
       break;
     case VLCMediaPlayerStateError:
-      NSLog(@"VLCMediaPlayerStateError %i", _player.numberOfAudioTracks);
       self.onVideoError(@{@"target" : self.reactTag});
       [self _release];
       break;
@@ -376,67 +368,46 @@ static NSString *const playbackRate = @"rate";
 
 - (void)setResizeMode:(NSString *)resizeMode {
   if (!_player) {
-    NSLog(@"[VLCPlayer] Player not initialized when setting resizeMode: %@",
-          resizeMode);
     return;
   }
 
-  NSLog(@"[VLCPlayer] Setting resizeMode: %@", resizeMode);
   _resizeMode = resizeMode;
 
   if ([resizeMode isEqualToString:@"cover"]) {
     UIScreen *screen = [UIScreen mainScreen];
     CGRect screenBounds = screen.bounds;
 
-    // 获取当前设备方向
-    UIDeviceOrientation orientation = [[UIDevice currentDevice] orientation];
     float screenWidth = screenBounds.size.width;
     float screenHeight = screenBounds.size.height;
 
-    // 根据方向调整宽高比
-    if (UIDeviceOrientationIsLandscape(orientation)) {
-      float temp = screenWidth;
-      screenWidth = screenHeight;
-      screenHeight = temp;
-    }
-
     float f_ar = screenWidth / screenHeight;
-    NSLog(@"[VLCPlayer] Screen dimensions - width: %.2f, height: %.2f, aspect "
-          @"ratio: %.4f, orientation: %ld",
-          screenWidth, screenHeight, f_ar, (long)orientation);
 
     if (f_ar == (float)(640. / 1136.)) { // iPhone 5 aka 16:9.01
-      NSLog(@"[VLCPlayer] Detected iPhone 5 format, setting crop geometry to "
-            @"16:9");
       _player.videoCropGeometry = "16:9";
     } else if (f_ar == (float)(2. / 3.)) { // all other iPhones
-      NSLog(@"[VLCPlayer] Detected standard iPhone format, setting crop "
-            @"geometry to 2:3");
       _player.videoCropGeometry = "16:10";
     } else if (f_ar == .75) { // all iPads
-      NSLog(@"[VLCPlayer] Detected iPad format, setting crop geometry to 4:3");
       _player.videoCropGeometry = "4:3";
     } else if (f_ar == .5625) { // AirPlay
-      NSLog(
-          @"[VLCPlayer] Detected AirPlay format, setting crop geometry to 4:3");
       _player.videoCropGeometry = "16:9";
     } else {
-      NSLog(@"[VLCPlayer] Unknown screen format %.4f, setting custom crop "
-            @"geometry: %.0f:%.0f",
-            f_ar, screenWidth, screenHeight);
       NSString *cropGeometry =
           [NSString stringWithFormat:@"%.0f:%.0f", screenWidth, screenHeight];
       _player.videoCropGeometry = cropGeometry.UTF8String;
     }
   } else if ([resizeMode isEqualToString:@"contain"]) {
-    NSLog(@"[VLCPlayer] Setting video aspect ratio to NULL (contain mode)");
     [_player setVideoAspectRatio:NULL];
     _player.videoCropGeometry = NULL;
   } else if ([resizeMode isEqualToString:@"stretch"]) {
-    NSLog(@"[VLCPlayer] Setting video aspect ratio to 1:1 (stretch mode)");
     [_player setVideoAspectRatio:"1:1"];
     _player.videoCropGeometry = NULL;
+  } else {
+    [_player setVideoAspectRatio:NULL];
+    _player.videoCropGeometry = NULL;
   }
+  // 触发布局更新
+  [self setNeedsLayout];
+  [self layoutIfNeeded];
 }
 
 - (void)_release {
