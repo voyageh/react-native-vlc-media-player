@@ -432,46 +432,68 @@ static NSString *const playbackRate = @"rate";
 
 - (void)enterFullscreen {
   if (_isFullscreen)
-    return;
+    return; // 如果已经是全屏，直接返回
 
-  // 保存当前状态
+  // 保存当前视图状态，用于退出全屏时恢复
   _originalParentView = self.superview;
   _originalFrame = self.frame;
 
-  // 获取窗口和屏幕尺寸
-  UIWindow *window = [UIApplication sharedApplication].keyWindow;
-  CGSize screenSize = [UIScreen mainScreen].bounds.size;
+  // 获取应用程序的主窗口
+  UIWindow *window = nil;
+  if (@available(iOS 13.0, *)) {
+    NSArray *scenes = [[UIApplication sharedApplication] connectedScenes];
+    for (UIScene *scene in scenes) {
+      if (scene.activationState == UISceneActivationStateForegroundActive &&
+          [scene isKindOfClass:[UIWindowScene class]]) {
+        UIWindowScene *windowScene = (UIWindowScene *)scene;
+        for (UIWindow *appWindow in windowScene.windows) {
+          if (appWindow.isKeyWindow) {
+            window = appWindow;
+            break;
+          }
+        }
+        if (window)
+          break;
+      }
+    }
+  } else {
+    window = [UIApplication sharedApplication].keyWindow;
+  }
 
-  // 将播放器视图添加到窗口
+  if (!window)
+    return;
+
+  // 将播放器视图移动到窗口层级，使其全屏显示
   [self removeFromSuperview];
   [window addSubview:self];
 
-  UIWindowScene *windowScene = (UIWindowScene *)window.windowScene;
-  if (windowScene) {
-    UIWindowSceneGeometryPreferencesIOS *preferences =
+  // 强制横屏
+  if (@available(iOS 16.0, *)) {
+    [self setNeedsUpdateOfSupportedInterfaceOrientations];
+    NSArray *array =
+        [[UIApplication sharedApplication].connectedScenes allObjects];
+    UIWindowScene *scene = [array firstObject];
+    UIInterfaceOrientationMask orientation =
+        UIInterfaceOrientationMaskLandscapeRight;
+    UIWindowSceneGeometryPreferencesIOS *geometryPreferences =
         [[UIWindowSceneGeometryPreferencesIOS alloc]
-            initWithInterfaceOrientations:
-                UIInterfaceOrientationMaskLandscapeRight];
-    [windowScene
-        requestGeometryUpdateWithPreferences:preferences
-                                errorHandler:^(NSError *_Nonnull error) {
-                                  NSLog(@"Failed to update interface "
-                                        @"orientation: %@",
-                                        error);
-                                }];
+            initWithInterfaceOrientations:orientation];
+    [scene requestGeometryUpdateWithPreferences:geometryPreferences
+                                   errorHandler:^(NSError *error) {
+                                     NSLog(@"强制横屏错误:%@", error);
+                                   }];
+  } else {
+    // iOS 16以前的方式
+    NSNumber *orientationTarget =
+        [NSNumber numberWithInteger:UIInterfaceOrientationLandscapeRight];
+    [[UIDevice currentDevice] setValue:orientationTarget forKey:@"orientation"];
   }
 
-  // 设置全屏frame - 修复为横屏模式下的正确尺寸
-  self.frame = CGRectMake(0, 0, screenSize.height, screenSize.width);
-
-  // 确保VLC播放器视图显示正确
-  if (_player) {
-    _player.drawable = self;
-  }
-
+  // 设置播放器视图全屏状态
+  self.frame = window.bounds;
   _isFullscreen = YES;
 
-  // 触发全屏事件
+  // 触发全屏进入事件
   if (self.onFullScreenEnter) {
     self.onFullScreenEnter(@{@"target" : self.reactTag});
   }
@@ -479,43 +501,43 @@ static NSString *const playbackRate = @"rate";
 
 - (void)exitFullscreen {
   if (!_isFullscreen)
-    return;
+    return; // 如果不是全屏，直接返回
 
-  // 使用新的 API 恢复屏幕方向
-  UIWindowScene *windowScene = (UIWindowScene *)self.window.windowScene;
-  if (windowScene) {
-    UIWindowSceneGeometryPreferencesIOS *preferences =
-        [[UIWindowSceneGeometryPreferencesIOS alloc]
-            initWithInterfaceOrientations:UIInterfaceOrientationMaskPortrait];
-    [windowScene
-        requestGeometryUpdateWithPreferences:preferences
-                                errorHandler:^(NSError *_Nonnull error) {
-                                  NSLog(@"Failed to update interface "
-                                        @"orientation: %@",
-                                        error);
-                                }];
-  }
-
-  // 等待屏幕旋转完成后再恢复视图
-  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)), 
-                dispatch_get_main_queue(), ^{
-    // 恢复原始状态
-    [self removeFromSuperview];
+  // 将播放器视图移回原来的位置
+  [self removeFromSuperview];
+  if (_originalParentView) {
     [_originalParentView addSubview:self];
     self.frame = _originalFrame;
-    
-    // 确保VLC播放器视图显示正确
-    if (_player) {
-      _player.drawable = self;
-    }
-    
-    _isFullscreen = NO;
-    
-    // 触发退出全屏事件
-    if (self.onFullScreenExit) {
-      self.onFullScreenExit(@{@"target" : self.reactTag});
-    }
-  });
+  }
+
+  // 强制竖屏
+  if (@available(iOS 16.0, *)) {
+    [self setNeedsUpdateOfSupportedInterfaceOrientations];
+    NSArray *array =
+        [[UIApplication sharedApplication].connectedScenes allObjects];
+    UIWindowScene *scene = [array firstObject];
+    UIInterfaceOrientationMask orientation = UIInterfaceOrientationMaskPortrait;
+    UIWindowSceneGeometryPreferencesIOS *geometryPreferences =
+        [[UIWindowSceneGeometryPreferencesIOS alloc]
+            initWithInterfaceOrientations:orientation];
+    [scene requestGeometryUpdateWithPreferences:geometryPreferences
+                                   errorHandler:^(NSError *error) {
+                                     NSLog(@"强制竖屏错误:%@", error);
+                                   }];
+  } else {
+    // iOS 16以前的方式
+    NSNumber *orientationTarget =
+        [NSNumber numberWithInteger:UIInterfaceOrientationPortrait];
+    [[UIDevice currentDevice] setValue:orientationTarget forKey:@"orientation"];
+  }
+
+  // 重置全屏状态
+  _isFullscreen = NO;
+
+  // 触发全屏退出事件
+  if (self.onFullScreenExit) {
+    self.onFullScreenExit(@{@"target" : self.reactTag});
+  }
 }
 
 @end
