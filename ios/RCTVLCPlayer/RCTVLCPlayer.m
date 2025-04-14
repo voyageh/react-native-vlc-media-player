@@ -382,24 +382,12 @@ static NSString *const playbackRate = @"rate";
 
     float f_ar = screenWidth / screenHeight;
 
-    if (f_ar == (float)(640. / 1136.)) { // iPhone 5 aka 16:9.01
-      _player.videoCropGeometry = "16:9";
-    } else if (f_ar == (float)(2. / 3.)) { // all other iPhones
-      _player.videoCropGeometry = "16:10";
-    } else if (f_ar == .75) { // all iPads
-      _player.videoCropGeometry = "4:3";
-    } else if (f_ar == .5625) { // AirPlay
-      _player.videoCropGeometry = "16:9";
-    } else {
-      NSString *cropGeometry =
-          [NSString stringWithFormat:@"%.0f:%.0f", screenWidth, screenHeight];
-      _player.videoCropGeometry = cropGeometry.UTF8String;
-    }
+    NSString *cropGeometry =
+        [NSString stringWithFormat:@"%.0f:%.0f", screenWidth, screenHeight];
+    _player.videoCropGeometry = cropGeometry.UTF8String;
+    [_player setVideoAspectRatio:NULL];
   } else if ([resizeMode isEqualToString:@"contain"]) {
     [_player setVideoAspectRatio:NULL];
-    _player.videoCropGeometry = NULL;
-  } else if ([resizeMode isEqualToString:@"stretch"]) {
-    [_player setVideoAspectRatio:"1:1"];
     _player.videoCropGeometry = NULL;
   } else {
     [_player setVideoAspectRatio:NULL];
