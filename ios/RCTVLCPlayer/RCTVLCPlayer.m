@@ -121,10 +121,10 @@ static NSString *const playbackRate = @"rate";
 
 - (void)setAutoplay:(BOOL)autoplay {
   _autoplay = autoplay;
-  // 设置视频源后应用当前的resizeMode
-  if (_resizeMode) {
-    [self setResizeMode:_resizeMode];
-  }
+    // 设置视频源后应用当前的resizeMode
+    if (_resizeMode) {
+      [self setResizeMode:_resizeMode];
+    }
   if (autoplay)
     [self play];
 }
@@ -392,14 +392,14 @@ static NSString *const playbackRate = @"rate";
     } else if (f_ar == .5625) { // AirPlay
       NSLog(
           @"[VLCPlayer] Detected AirPlay format, setting crop geometry to 4:3");
-      _player.videoCropGeometry = @"16:9";
+      _player.videoCropGeometry = "16:9".UTF8String;
     } else {
       NSLog(@"[VLCPlayer] Unknown screen format %.4f, setting custom crop "
             @"geometry: %.0f:%.0f",
             f_ar, screen.bounds.size.width, screen.bounds.size.height);
       _player.videoCropGeometry =
-          [NSString stringWithFormat:"%.0f:%.0f", screen.bounds.size.width,
-                                     screen.bounds.size.height];
+          [NSString stringWithFormat:@"%.0f:%.0f", screen.bounds.size.width,
+                                    screen.bounds.size.height].UTF8String;
     }
   } else if ([resizeMode isEqualToString:@"contain"]) {
     NSLog(@"[VLCPlayer] Setting video aspect ratio to NULL (contain mode)");
