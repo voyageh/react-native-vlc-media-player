@@ -131,14 +131,13 @@ static NSString *const playbackRate = @"rate";
         setActive:NO
       withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation
             error:nil];
-
-  // 初始化后应用当前的resizeMode
-  [self setResizeMode:_resizeMode];
 }
 
 - (void)setAutoplay:(BOOL)autoplay {
-  if (autoplay)
+  if (autoplay) {
     [self play];
+    [self setResizeMode:_resizeMode];
+  }
 }
 
 - (void)setPaused:(BOOL)paused {
@@ -168,7 +167,7 @@ static NSString *const playbackRate = @"rate";
                          type:VLCMediaPlaybackSlaveTypeSubtitle
                       enforce:YES];
   } else {
-    NSLog(@"Invalid subtitle URI: %@", subtitleUri);
+    // NSLog(@"Invalid subtitle URI: %@", subtitleUri); // Removed
   }
 }
 
@@ -223,11 +222,9 @@ static NSString *const playbackRate = @"rate";
 //   ===== media delegate methods =====
 
 - (void)mediaDidFinishParsing:(VLCMedia *)aMedia {
-  NSLog(@"VLCMediaDidFinishParsing %i", _player.numberOfAudioTracks);
 }
 
 - (void)mediaMetaDataDidChange:(VLCMedia *)aMedia {
-  NSLog(@"VLCMediaMetaDataDidChange %i", _player.numberOfAudioTracks);
 }
 
 //   ===================================
@@ -314,13 +311,10 @@ static NSString *const playbackRate = @"rate";
 
 - (void)setSeekTime:(int)timeInMS {
   if (_player && [_player isSeekable]) {
-    NSLog(@"setSeekTime input (ms): %i", timeInMS);
     if (timeInMS >= 0 && timeInMS <= [_player.media.length intValue]) {
-      // 将毫秒转换为微秒，因为VLC内部使用微秒
       long long timeInMicroSeconds = (long long)timeInMS * 1000;
       VLCTime *time = [VLCTime
           timeWithNumber:[NSNumber numberWithLongLong:timeInMicroSeconds]];
-      NSLog(@"Setting time to microseconds: %lld", timeInMicroSeconds);
       [_player setTime:time];
 
       // 验证设置后的时间
@@ -328,8 +322,6 @@ static NSString *const playbackRate = @"rate";
           dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)),
           dispatch_get_main_queue(), ^{
             long long currentTimeMicros = [[_player.time value] longLongValue];
-            NSLog(@"Current time after seek (ms): %lld",
-                  currentTimeMicros / 1000);
           });
     }
   }
@@ -381,10 +373,9 @@ static NSString *const playbackRate = @"rate";
   _resizeMode = resizeMode; // 保存当前的模式
 
   if (!_player) {
-    NSLog(@"RCTVLCPlayer: setResizeMode called but player is nil.");
+
     return;
   }
-  NSLog(@"RCTVLCPlayer: Setting resizeMode to: %@", resizeMode);
 
   if ([resizeMode isEqualToString:@"cover"]) {
     CGRect viewBounds = self.bounds;
@@ -410,27 +401,21 @@ static NSString *const playbackRate = @"rate";
 
       NSString *cropGeometry =
           [NSString stringWithFormat:@"%d:%d", cropWidth, cropHeight];
-      NSLog(@"RCTVLCPlayer: Setting cover mode with cropGeometry: %@",
-            cropGeometry);
+
       _player.videoCropGeometry = cropGeometry.UTF8String;
-      [_player setVideoAspectRatio:NULL]; // Ensure aspect ratio is not set when
-                                          // using crop
+      [_player setVideoAspectRatio:NULL];
     } else {
-      NSLog(@"RCTVLCPlayer: Cannot calculate crop for cover mode. Invalid view "
-            @"bounds or video size.");
-      // Fallback to contain behavior if dimensions are invalid
       _player.videoCropGeometry = NULL;
       [_player setVideoAspectRatio:NULL];
     }
 
   } else if ([resizeMode isEqualToString:@"contain"]) {
     // 对于 contain 模式，重置裁剪和宽高比，让 VLC 自行处理
-    NSLog(@"RCTVLCPlayer: Setting contain mode");
     _player.videoCropGeometry = NULL;
     [_player setVideoAspectRatio:NULL];
   } else {
     // 默认情况同 contain
-    NSLog(@"RCTVLCPlayer: Setting default mode (contain)");
+
     _player.videoCropGeometry = NULL;
     [_player setVideoAspectRatio:NULL];
   }
@@ -446,9 +431,7 @@ static NSString *const playbackRate = @"rate";
   // 添加一个检查防止 _isUpdatingLayout 导致的潜在无限循环
   // (虽然不太可能在这里发生)
   if (!_isUpdatingLayout && _player && _resizeMode) {
-    NSLog(@"RCTVLCPlayer: layoutSubviews triggered, re-applying resizeMode: %@",
-          _resizeMode);
-    // 标记开始更新布局，防止递归调用 setResizeMode -> layoutSubviews
+
     _isUpdatingLayout = YES;
     [self setResizeMode:_resizeMode];
     // 更新完成后重置标记
@@ -468,7 +451,7 @@ static NSString *const playbackRate = @"rate";
 
 #pragma mark - Lifecycle
 - (void)removeFromSuperview {
-  NSLog(@"RCTVLCPlayer: removeFromSuperview");
+  // NSLog(@"RCTVLCPlayer: removeFromSuperview"); // Removed
   // 移除所有通知观察者
   [[NSNotificationCenter defaultCenter] removeObserver:self];
   [self _release];
@@ -487,9 +470,9 @@ static NSString *const playbackRate = @"rate";
   // 仅处理有效的横竖屏切换
   if (UIDeviceOrientationIsLandscape(orientation) ||
       UIDeviceOrientationIsPortrait(orientation)) {
-    NSLog(@"RCTVLCPlayer: Orientation changed, applying resizeMode: %@",
-          self->_resizeMode);
-    // 标记我们正在处理方向变化，防止 layoutSubviews 触发的 setResizeMode 冲突
+    // NSLog(@"RCTVLCPlayer: Orientation changed, applying resizeMode: %@",
+    // self->_resizeMode); // Removed 标记我们正在处理方向变化，防止
+    // layoutSubviews 触发的 setResizeMode 冲突
     _isUpdatingLayout = YES;
     // 直接调用 setResizeMode，此时 self.bounds 应该已经或即将更新
     // setResizeMode 内部会根据新的 bounds 设置正确的 aspect ratio (for cover)
