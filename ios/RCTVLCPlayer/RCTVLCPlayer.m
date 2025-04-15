@@ -3,6 +3,7 @@
 #import "React/RCTConvert.h"
 #import "React/RCTEventDispatcher.h"
 #import "React/UIView+React.h"
+#import <UIKit/UIKit.h>
 #if TARGET_OS_TV
 #import <TVVLCKit/TVVLCKit.h>
 #else
@@ -56,6 +57,13 @@ static NSString *const playbackRate = @"rate";
         addObserver:self
            selector:@selector(applicationWillEnterForeground:)
                name:UIApplicationWillEnterForegroundNotification
+             object:nil];
+
+    // 添加方向变化监听
+    [[NSNotificationCenter defaultCenter]
+        addObserver:self
+           selector:@selector(orientationDidChange:)
+               name:UIDeviceOrientationDidChangeNotification
              object:nil];
   }
 
@@ -371,6 +379,7 @@ static NSString *const playbackRate = @"rate";
 
 - (void)setResizeMode:(NSString *)resizeMode {
   if (!_player) {
+    NSLog(@"RCTVLCPlayer: setResizeMode called but player is nil.");
     return;
   }
 
@@ -400,6 +409,7 @@ static NSString *const playbackRate = @"rate";
 
     if (videoWidth > 0 && videoHeight > 0) {
       float videoAspect = videoWidth / videoHeight;
+      float viewAspect = viewWidth / viewHeight;
 
       if (screenAspect > videoAspect) {
         // 屏幕比视频“更宽”，按宽度匹配，裁剪高度
@@ -416,6 +426,7 @@ static NSString *const playbackRate = @"rate";
     NSString *cropGeometry =
         [NSString stringWithFormat:@"%.0f:%.0f", cropWidth, cropHeight];
     _player.videoCropGeometry = cropGeometry.UTF8String;
+    // 确保宽高比由VLC根据裁剪后的区域自动处理
     [_player setVideoAspectRatio:NULL];
   } else if ([resizeMode isEqualToString:@"contain"]) {
     NSLog(@"设置contain模式");
@@ -446,9 +457,41 @@ static NSString *const playbackRate = @"rate";
 
 #pragma mark - Lifecycle
 - (void)removeFromSuperview {
-  NSLog(@"removeFromSuperview");
+  NSLog(@"RCTVLCPlayer: removeFromSuperview");
+  // 移除所有通知观察者
+  [[NSNotificationCenter defaultCenter] removeObserver:self];
   [self _release];
   [super removeFromSuperview];
+}
+
+// 处理方向变化的函数
+- (void)orientationDidChange:(NSNotification *)notification {
+  // 防止在布局更新过程中重复调用
+  if (_isUpdatingLayout) {
+    return;
+  }
+  _isUpdatingLayout = YES;
+
+  UIDeviceOrientation orientation = [[UIDevice currentDevice] orientation];
+
+  // 仅处理有效的横竖屏切换
+  if (UIDeviceOrientationIsLandscape(orientation) ||
+      UIDeviceOrientationIsPortrait(orientation)) {
+    NSLog(
+        @"RCTVLCPlayer: Orientation changed, updating layout and resizeMode.");
+    // 使用动画平滑过渡
+    [UIView animateWithDuration:0.3
+        animations:^{
+          // 重新应用 resizeMode，它会使用更新后的 self.bounds
+          [self setResizeMode:self->_resizeMode];
+        }
+        completion:^(BOOL finished) {
+          self->_isUpdatingLayout = NO;
+        }];
+  } else {
+    // 如果方向无效（例如，FaceUp/FaceDown），则不执行任何操作并重置标志
+    _isUpdatingLayout = NO;
+  }
 }
 
 @end
