@@ -393,18 +393,20 @@ static NSString *const playbackRate = @"rate";
 
     if (viewBounds.size.width > 0 && viewBounds.size.height > 0 &&
         videoWidth > 0 && videoHeight > 0) {
-      float viewAspect = viewBounds.size.width / viewBounds.size.height;
+      float viewWidth = viewBounds.size.width;
+      float viewHeight = viewBounds.size.height;
+      float viewAspect = viewWidth / viewHeight;
       float videoAspect = videoWidth / videoHeight;
-      int cropWidth = videoWidth;
-      int cropHeight = videoHeight;
+      float scale = 1.0;
 
       if (viewAspect > videoAspect) {
-        // View is wider than video -> crop vertically
-        cropHeight = (int)(videoWidth / viewAspect);
+        scale = viewWidth / videoWidth;
       } else {
-        // View is taller than video -> crop horizontally
-        cropWidth = (int)(videoHeight * viewAspect);
+        scale = viewHeight / videoHeight;
       }
+
+      int cropWidth = viewWidth * scale;
+      int cropHeight = viewHeight * scale;
 
       NSString *cropGeometry =
           [NSString stringWithFormat:@"%d:%d", cropWidth, cropHeight];
@@ -432,8 +434,8 @@ static NSString *const playbackRate = @"rate";
     _player.videoCropGeometry = NULL;
     [_player setVideoAspectRatio:NULL];
   }
-
-  // 系统会自动处理布局更新
+  [self setNeedsLayout];
+  [self layoutIfNeeded];
 }
 
 // 重写layoutSubviews方法来处理旋转后的布局
