@@ -378,70 +378,80 @@ static NSString *const playbackRate = @"rate";
 }
 
 - (void)setResizeMode:(NSString *)resizeMode {
+  _resizeMode = resizeMode; // 保存当前的模式
+
   if (!_player) {
     NSLog(@"RCTVLCPlayer: setResizeMode called but player is nil.");
     return;
   }
-
-  _resizeMode = resizeMode;
+  NSLog(@"RCTVLCPlayer: Setting resizeMode to: %@", resizeMode);
 
   if ([resizeMode isEqualToString:@"cover"]) {
-    UIScreen *screen = [UIScreen mainScreen];
-    CGRect screenBounds = screen.bounds;
-
-    // 根据当前frame的宽高比确定方向
-    float screenWidth, screenHeight;
-    BOOL isFrameLandscape = self.frame.size.width > self.frame.size.height;
-
-    if (isFrameLandscape) {
-      screenWidth = MAX(screenBounds.size.width, screenBounds.size.height);
-      screenHeight = MIN(screenBounds.size.width, screenBounds.size.height);
-    } else {
-      screenWidth = MIN(screenBounds.size.width, screenBounds.size.height);
-      screenHeight = MAX(screenBounds.size.width, screenBounds.size.height);
-    }
-
-    float scale = 1.0;
-    float screenAspect = screenWidth / screenHeight;
-
+    CGRect viewBounds = self.bounds;
     float videoWidth = _player.videoSize.width;
     float videoHeight = _player.videoSize.height;
 
-    if (videoWidth > 0 && videoHeight > 0) {
+    if (viewBounds.size.width > 0 && viewBounds.size.height > 0 &&
+        videoWidth > 0 && videoHeight > 0) {
+      float viewAspect = viewBounds.size.width / viewBounds.size.height;
       float videoAspect = videoWidth / videoHeight;
+      int cropWidth = videoWidth;
+      int cropHeight = videoHeight;
 
-      if (screenAspect > videoAspect) {
-        // 屏幕比视频“更宽”，按宽度匹配，裁剪高度
-        scale = screenWidth / videoWidth;
+      if (viewAspect > videoAspect) {
+        // View is wider than video -> crop vertically
+        cropHeight = (int)(videoWidth / viewAspect);
       } else {
-        // 屏幕比视频“更高”，按高度匹配，裁剪宽度
-        scale = screenHeight / videoHeight;
+        // View is taller than video -> crop horizontally
+        cropWidth = (int)(videoHeight * viewAspect);
       }
+
+      NSString *cropGeometry =
+          [NSString stringWithFormat:@"%d:%d", cropWidth, cropHeight];
+      NSLog(@"RCTVLCPlayer: Setting cover mode with cropGeometry: %@",
+            cropGeometry);
+      _player.videoCropGeometry = cropGeometry.UTF8String;
+      [_player setVideoAspectRatio:NULL]; // Ensure aspect ratio is not set when
+                                          // using crop
+    } else {
+      NSLog(@"RCTVLCPlayer: Cannot calculate crop for cover mode. Invalid view "
+            @"bounds or video size.");
+      // Fallback to contain behavior if dimensions are invalid
+      _player.videoCropGeometry = NULL;
+      [_player setVideoAspectRatio:NULL];
     }
 
-    float cropWidth = screenWidth * scale;
-    float cropHeight = screenHeight * scale;
-
-    NSString *cropGeometry =
-        [NSString stringWithFormat:@"%.0f:%.0f", cropWidth, cropHeight];
-    _player.videoCropGeometry = cropGeometry.UTF8String;
-    // 确保宽高比由VLC根据裁剪后的区域自动处理
-    [_player setVideoAspectRatio:NULL];
   } else if ([resizeMode isEqualToString:@"contain"]) {
-    NSLog(@"设置contain模式");
+    // 对于 contain 模式，重置裁剪和宽高比，让 VLC 自行处理
+    NSLog(@"RCTVLCPlayer: Setting contain mode");
     _player.videoCropGeometry = NULL;
+    [_player setVideoAspectRatio:NULL];
   } else {
-    NSLog(@"设置默认模式");
+    // 默认情况同 contain
+    NSLog(@"RCTVLCPlayer: Setting default mode (contain)");
     _player.videoCropGeometry = NULL;
+    [_player setVideoAspectRatio:NULL];
   }
 
-  [self setNeedsLayout];
-  [self layoutIfNeeded];
+  // 系统会自动处理布局更新
 }
 
 // 重写layoutSubviews方法来处理旋转后的布局
 - (void)layoutSubviews {
   [super layoutSubviews];
+  // 当视图的 bounds 改变时（例如旋转完成或父视图调整），
+  // 确保视频的 resizeMode 被重新应用以匹配新的尺寸。
+  // 添加一个检查防止 _isUpdatingLayout 导致的潜在无限循环
+  // (虽然不太可能在这里发生)
+  if (!_isUpdatingLayout && _player && _resizeMode) {
+    NSLog(@"RCTVLCPlayer: layoutSubviews triggered, re-applying resizeMode: %@",
+          _resizeMode);
+    // 标记开始更新布局，防止递归调用 setResizeMode -> layoutSubviews
+    _isUpdatingLayout = YES;
+    [self setResizeMode:_resizeMode];
+    // 更新完成后重置标记
+    _isUpdatingLayout = NO;
+  }
 }
 
 - (void)_release {
@@ -469,28 +479,24 @@ static NSString *const playbackRate = @"rate";
   if (_isUpdatingLayout) {
     return;
   }
-  _isUpdatingLayout = YES;
 
   UIDeviceOrientation orientation = [[UIDevice currentDevice] orientation];
 
   // 仅处理有效的横竖屏切换
   if (UIDeviceOrientationIsLandscape(orientation) ||
       UIDeviceOrientationIsPortrait(orientation)) {
-    NSLog(
-        @"RCTVLCPlayer: Orientation changed, updating layout and resizeMode.");
-    // 使用动画平滑过渡
-    [UIView animateWithDuration:0.3
-        animations:^{
-          // 重新应用 resizeMode，它会使用更新后的 self.bounds
-          [self setResizeMode:self->_resizeMode];
-        }
-        completion:^(BOOL finished) {
-          self->_isUpdatingLayout = NO;
-        }];
-  } else {
-    // 如果方向无效（例如，FaceUp/FaceDown），则不执行任何操作并重置标志
+    NSLog(@"RCTVLCPlayer: Orientation changed, applying resizeMode: %@",
+          self->_resizeMode);
+    // 标记我们正在处理方向变化，防止 layoutSubviews 触发的 setResizeMode 冲突
+    _isUpdatingLayout = YES;
+    // 直接调用 setResizeMode，此时 self.bounds 应该已经或即将更新
+    // setResizeMode 内部会根据新的 bounds 设置正确的 aspect ratio (for cover)
+    [self setResizeMode:self->_resizeMode];
+    // 完成后重置标记
     _isUpdatingLayout = NO;
   }
+  // 注意：对于 FaceUp/FaceDown 等情况，我们不执行任何操作，也不重置标记，
+  // 因为 _isUpdatingLayout 在开始时就判断并返回了。
 }
 
 @end
