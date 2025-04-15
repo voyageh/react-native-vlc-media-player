@@ -409,7 +409,6 @@ static NSString *const playbackRate = @"rate";
 
     if (videoWidth > 0 && videoHeight > 0) {
       float videoAspect = videoWidth / videoHeight;
-      float viewAspect = viewWidth / viewHeight;
 
       if (screenAspect > videoAspect) {
         // 屏幕比视频“更宽”，按宽度匹配，裁剪高度
