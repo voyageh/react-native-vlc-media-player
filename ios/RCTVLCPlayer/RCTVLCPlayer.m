@@ -35,8 +35,9 @@ static NSString *const playbackRate = @"rate";
   BOOL _autoplay;
   BOOL _repeat;
   BOOL _isFullscreen;
-  BOOL _isLandscape; // 新增变量，用于跟踪当前是否为横屏状态
   BOOL _isUpdatingLayout; // 新增变量，防止layoutSubviews中的无限循环
+
+  int _startTime;
 
   NSString *_resizeMode;
   UIView *_originalParentView;
@@ -197,6 +198,9 @@ static NSString *const playbackRate = @"rate";
     case VLCMediaPlayerStateBuffering:
       if (!_videoInfo && _player.numberOfAudioTracks > 0) {
         _videoInfo = [self getVideoInfo];
+
+        // 直接调用setStartTime方法，传入当前的_startTime值
+        [self setStartTime:_startTime];
         self.onVideoLoad(_videoInfo);
       }
       self.onVideoBuffering(@{@"target" : self.reactTag});
@@ -323,6 +327,18 @@ static NSString *const playbackRate = @"rate";
           dispatch_get_main_queue(), ^{
             long long currentTimeMicros = [[_player.time value] longLongValue];
           });
+    }
+  }
+}
+
+- (void)setStartTime:(int)startTime {
+  _startTime = startTime;
+  if (_player && _player.media) {
+    if (startTime > 0 && [_player isSeekable]) {
+      long long timeInMicroSeconds = (long long)startTime * 1000;
+      VLCTime *time = [VLCTime
+          timeWithNumber:[NSNumber numberWithLongLong:timeInMicroSeconds]];
+      [_player setTime:time];
     }
   }
 }

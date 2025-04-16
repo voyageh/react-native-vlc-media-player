@@ -64,6 +64,7 @@ class ReactVlcPlayerView extends TextureView implements
     private int preVolume = 100;
     private boolean autoAspectRatio = false;
     private boolean repeat = false;
+    private int mStartTime = 0;
 
     private float mProgressUpdateInterval = 0;
     private Handler mProgressUpdateHandler = new Handler();
@@ -249,6 +250,12 @@ class ReactVlcPlayerView extends TextureView implements
                 case MediaPlayer.Event.Buffering:
                     if(mVideoInfo == null && mMediaPlayer.getAudioTracksCount() > 0) {
                         mVideoInfo = getVideoInfo();
+                        
+                        // 在触发onLoad事件前应用startTime
+                        if (mStartTime > 0 && mMediaPlayer.isSeekable()) {
+                            mMediaPlayer.setTime(mStartTime);
+                        }
+                        
                         eventEmitter.sendEvent(mVideoInfo, VideoEventEmitter.EVENT_ON_LOAD);
                         final Handler handler = new Handler(Looper.getMainLooper());
                         handler.postDelayed(new Runnable() {
@@ -752,6 +759,20 @@ class ReactVlcPlayerView extends TextureView implements
             map.putMap("videoSize", mapVideoSize);
         }
         return map;
+    }
+
+    /**
+     * 设置视频开始时间点
+     *
+     * @param startTime 毫秒
+     */
+    public void setStartTime(int startTime) {
+        mStartTime = startTime;
+        if (mMediaPlayer != null && mMediaPlayer.isSeekable()) {
+            if (startTime > 0) {
+                mMediaPlayer.setTime(startTime);
+            }
+        }
     }
 
     /*private void changeSurfaceSize(boolean message) {

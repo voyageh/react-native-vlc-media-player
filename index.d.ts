@@ -235,6 +235,12 @@ export type VLCPlayerProps = VLCPlayerCallbackProps & {
   seekTime?: number;
 
   /**
+   * Set the initial playback time in milliseconds
+   * The video will start playing from this position once loaded
+   */
+  startTime?: number;
+
+  /**
    * Set the volume of the player
    */
   volume?: number;
@@ -306,6 +312,12 @@ declare class VLCPlayer extends Component<VLCPlayerProps> {
    * @param timeInMS Time in milliseconds
    */
   seekTime(timeInMS: number): void;
+
+  /**
+   * Set the initial playback time in milliseconds
+   * The video will start playing from this position once loaded
+   */
+  startTime(startTime: number): void;
 
   /**
    * Resume or pause playback
