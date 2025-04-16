@@ -122,6 +122,11 @@ type OnProgressEventProps = Pick<VideoInfo, "duration" | "target"> & {
    * Buffering speed in bytes per second  eg 219 kb/s
    */
   bufferingSpeed: number;
+
+  /**
+   * Whether the startTime is set successfully
+   */
+  startTimeSetSuccessfully: boolean;
 };
 
 type SimpleCallbackEventProps = Pick<VideoInfo, "target"> & {};

@@ -229,6 +229,13 @@ class ReactVlcPlayerView extends TextureView implements
             map.putDouble("position", position);
             map.putDouble("currentTime", currentTime);
             map.putDouble("duration", totalLength);
+            
+            // 添加 startTime 设置成功的验证
+            boolean startTimeSetSuccessfully = false;
+            if (mStartTime > 0 && currentTime >= mStartTime) {
+                startTimeSetSuccessfully = true;
+            }
+            map.putBoolean("startTimeSetSuccessfully", startTimeSetSuccessfully);
 
             switch (event.type) {
                 case MediaPlayer.Event.EndReached:

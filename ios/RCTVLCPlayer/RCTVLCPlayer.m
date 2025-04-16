@@ -238,13 +238,20 @@ static NSString *const playbackRate = @"rate";
     int currentTime = [[_player time] intValue];
     int remainingTime = [[_player remainingTime] intValue];
     int duration = [_player.media.length intValue];
+    
+    // 检查 startTime 是否设置成功
+    BOOL startTimeSetSuccessfully = NO;
+    if (_startTime > 0 && currentTime >= _startTime) {
+      startTimeSetSuccessfully = YES;
+    }
 
     self.onVideoProgress(@{
       @"target" : self.reactTag,
       @"currentTime" : [NSNumber numberWithInt:currentTime],
       @"remainingTime" : [NSNumber numberWithInt:remainingTime],
       @"duration" : [NSNumber numberWithInt:duration],
-      @"position" : [NSNumber numberWithFloat:_player.position]
+      @"position" : [NSNumber numberWithFloat:_player.position],
+      @"startTimeSetSuccessfully" : @(startTimeSetSuccessfully)  // 添加新的字段
     });
   }
 }
