@@ -200,7 +200,9 @@ static NSString *const playbackRate = @"rate";
         _videoInfo = [self getVideoInfo];
 
         // 直接调用setStartTime方法，传入当前的_startTime值
-        [self setStartTime:_startTime];
+        if (_startTime > 0) {
+          [self setStartTime:_startTime];
+        }
         self.onVideoLoad(_videoInfo);
       }
       self.onVideoBuffering(@{@"target" : self.reactTag});
@@ -238,7 +240,7 @@ static NSString *const playbackRate = @"rate";
     int currentTime = [[_player time] intValue];
     int remainingTime = [[_player remainingTime] intValue];
     int duration = [_player.media.length intValue];
-    
+
     // 检查 startTime 是否设置成功
     BOOL startTimeSetSuccessfully = NO;
     if (_startTime > 0 && currentTime >= _startTime) {
@@ -251,7 +253,7 @@ static NSString *const playbackRate = @"rate";
       @"remainingTime" : [NSNumber numberWithInt:remainingTime],
       @"duration" : [NSNumber numberWithInt:duration],
       @"position" : [NSNumber numberWithFloat:_player.position],
-      @"startTimeSetSuccessfully" : @(startTimeSetSuccessfully)  // 添加新的字段
+      @"startTimeSetSuccessfully" : @(startTimeSetSuccessfully) // 添加新的字段
     });
   }
 }
@@ -500,6 +502,7 @@ static NSString *const playbackRate = @"rate";
     // 直接调用 setResizeMode，此时 self.bounds 应该已经或即将更新
     // setResizeMode 内部会根据新的 bounds 设置正确的 aspect ratio (for cover)
     [self setResizeMode:self->_resizeMode];
+
     // 完成后重置标记
     _isUpdatingLayout = NO;
   }
