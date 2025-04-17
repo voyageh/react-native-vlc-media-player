@@ -4,11 +4,7 @@
 #import "React/RCTEventDispatcher.h"
 #import "React/UIView+React.h"
 #import <UIKit/UIKit.h>
-#if TARGET_OS_TV
-#import <TVVLCKit/TVVLCKit.h>
-#else
-#import <MobileVLCKit/MobileVLCKit.h>
-#endif
+#import <VLCKit/VLCKit.h>
 #import <AVFoundation/AVFoundation.h>
 
 static NSString *const statusKeyPath = @"status";
@@ -119,8 +115,7 @@ static NSString *const playbackRate = @"rate";
 
   // 获取初始化类型，默认为0
   NSNumber *initTypeNum = [source objectForKey:@"initType"];
-  int initType =
-      [initTypeNum isKindOfClass:[NSNumber class]] ? [initTypeNum intValue] : 0;
+  int initType = [initTypeNum isKindOfClass:[NSNumber class]] ? [initTypeNum intValue] : 0;
 
   // 获取初始化选项
   NSDictionary *initOptions = [source objectForKey:@"initOptions"];
@@ -133,7 +128,18 @@ static NSString *const playbackRate = @"rate";
     if (initType == 1) {
       _player = [[VLCMediaPlayer alloc] init];
     } else {
-      _player = [[VLCMediaPlayer alloc] initWithOptions:initOptions];
+      NSArray *options = nil;
+      if (initOptions) {
+        NSMutableArray *optionsArray = [NSMutableArray array];
+        for (NSString *key in initOptions) {
+          id value = initOptions[key];
+          if ([value isKindOfClass:[NSString class]]) {
+            [optionsArray addObject:[NSString stringWithFormat:@"%@=%@", key, value]];
+          }
+        }
+        options = optionsArray;
+      }
+      _player = [[VLCMediaPlayer alloc] initWithOptions:options];
     }
 
     if (!_player) {
@@ -144,7 +150,7 @@ static NSString *const playbackRate = @"rate";
     _player.drawable = self;
 
     // 设置媒体源
-    VLCMedia *media = [VLCMedia mediaWithURL:uri];
+    VLCMedia *media = [[VLCMedia alloc] initWithURL:uri];
     if (!media) {
       [self _release];
       return;
@@ -154,16 +160,15 @@ static NSString *const playbackRate = @"rate";
 
     // 设置循环播放
     if (_repeat) {
-      [_player.media addOption:@"--input-repeat=1000"];
+      [media addOption:@"input-repeat=1000"];
     } else {
-      [_player.media addOption:@"--input-repeat=0"];
+      [media addOption:@"input-repeat=0"];
     }
 
     // 设置音频会话
-    [[AVAudioSession sharedInstance]
-          setActive:NO
-        withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation
-              error:nil];
+    [[AVAudioSession sharedInstance] setActive:NO
+                                  withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation
+                                        error:nil];
 
     // 触发播放（如果需要）
     if (!_paused) {
