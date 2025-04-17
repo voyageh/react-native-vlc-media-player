@@ -58,12 +58,7 @@ export type Track = {
   id: number;
 
   /**
-   * Track name
-   */
-  name: string;
-
-  /**
-   * Whether the track is the default track
+   * Whether the track is the selected track
    */
   isDefault: boolean;
 };

@@ -3,9 +3,15 @@
 #import "React/RCTConvert.h"
 #import "React/RCTEventDispatcher.h"
 #import "React/UIView+React.h"
+#if TARGET_OS_TV
+#import <TVVLCKit/TVVLCKit.h>
+#else
+#import <MobileVLCKit/MobileVLCKit.h>
+#endif
 #import <AVFoundation/AVFoundation.h>
+#import <UIKit/UIDevice.h>
 #import <UIKit/UIKit.h>
-#import <VLCKit/VLCKit.h>
+#import <UIKit/UIWindowScene.h>
 
 static NSString *const statusKeyPath = @"status";
 static NSString *const playbackLikelyToKeepUpKeyPath =
@@ -324,39 +330,40 @@ static NSString *const playbackRate = @"rate";
 
   // 获取音频轨道
   NSArray *audioTracks = [_player audioTracks];
-  NSArray *audioTrackIndexes = [_player audioTrackIndexes];
-  if (audioTracks.count > 0 && audioTrackIndexes.count > 0) {
+  if (audioTracks && audioTracks.count > 0) {
     NSMutableArray *tracks = [NSMutableArray new];
-    int currentAudioTrack = [_player currentAudioTrackIndex];
 
-    for (NSUInteger i = 0;
-         i < audioTracks.count && i < audioTracks.count; i++) {
-      [tracks addObject:@{
-        @"id" : audioTrackIndexes[i],
-        @"isDefault" : @([audioTrackIndexes[i] intValue] == currentAudioTrack)
-      }];
+    for (NSUInteger i = 0; i < audioTracks.count; i++) {
+      NSDictionary *track = audioTracks[i];
+      NSNumber *trackId = track[@"trackId"];
+      if (trackId) {
+        [tracks
+            addObject:@{@"id" : trackId, @"isDefault" : @(track.isSelected)}];
+      }
     }
 
-    info[@"audioTracks"] = tracks;
+    if (tracks.count > 0) {
+      info[@"audioTracks"] = tracks;
+    }
   }
 
   // 获取字幕轨道
-  NSArray *subtitleNames = [_player videoSubtitlesNames];
-  NSArray *subtitleIndexes = [_player videoSubtitlesIndexes];
-  if (subtitleNames.count > 0 && subtitleIndexes.count > 0) {
+  NSArray *subtitleTracks = [_player textTracks];
+  if (subtitleTracks && subtitleTracks.count > 0) {
     NSMutableArray *tracks = [NSMutableArray new];
-    int currentSubtitleTrack = [_player currentVideoSubTitleIndex];
 
-    for (NSUInteger i = 0; i < subtitleNames.count && i < subtitleIndexes.count;
-         i++) {
-      [tracks addObject:@{
-        @"id" : subtitleIndexes[i],
-        @"name" : subtitleNames[i],
-        @"isDefault" : @([subtitleIndexes[i] intValue] == currentSubtitleTrack)
-      }];
+    for (NSUInteger i = 0; i < subtitleTracks.count; i++) {
+      NSDictionary *track = subtitleTracks[i];
+      NSNumber *trackId = track[@"trackId"];
+      if (trackId) {
+        [tracks
+            addObject:@{@"id" : trackId, @"isDefault" : @(track.isSelected)}];
+      }
     }
 
-    info[@"textTracks"] = tracks;
+    if (tracks.count > 0) {
+      info[@"textTracks"] = tracks;
+    }
   }
 
   return info;
@@ -420,16 +427,35 @@ static NSString *const playbackRate = @"rate";
 }
 
 - (void)setAudioTrack:(int)track {
-  [_player setCurrentAudioTrackIndex:track];
+  if (_player) {
+    NSArray *audioTracks = [_player.audioTracks];
+    NSInteger count = audioTracks.count;
+
+    if (track < count) {
+      VLCMediaPlayerTrack *track = audioTracks[track];
+    }
+  }
 }
 
 - (void)setTextTrack:(int)track {
-  [_player setCurrentVideoSubTitleIndex:track];
+  if (_player) {
+    NSArray *textTracks = [_player.textTracks];
+    NSInteger count = textTracks.count;
+
+    if (track >= 0 && track < count) {
+      VLCMediaPlayerTrack *track = textTracks[track];
+    } else if (track < 0) {
+      [_player deselectAllTextTracks];
+    } else {
+      NSLog(@"Invalid text track index: %d", track);
+    }
+  }
 }
 
 - (void)setVideoAspectRatio:(NSString *)ratio {
-  char *char_content = [ratio cStringUsingEncoding:NSASCIIStringEncoding];
-  [_player setVideoAspectRatio:char_content];
+  if (ratio && ratio.length > 0) {
+    [_player setVideoAspectRatio:ratio];
+  }
 }
 
 - (void)setRepeat:(BOOL)repeat {
