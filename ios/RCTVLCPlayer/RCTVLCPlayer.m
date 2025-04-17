@@ -246,21 +246,21 @@ static NSString *const playbackRate = @"rate";
       switch (state) {
       case VLCMediaPlayerStateOpening:
         if (self.onVideoOpen) {
-          self.onVideoOpen();
+          self.onVideoOpen(@{@"target" : self.reactTag});
         }
         if (self.onVideoLoadStart) {
-          self.onVideoLoadStart();
+          self.onVideoLoadStart(@{@"target" : self.reactTag});
         }
         break;
       case VLCMediaPlayerStatePaused:
         _paused = YES;
         if (self.onVideoPaused) {
-          self.onVideoPaused();
+          self.onVideoPaused(@{@"target" : self.reactTag});
         }
         break;
       case VLCMediaPlayerStateStopped:
         if (self.onVideoStopped) {
-          self.onVideoStopped();
+          self.onVideoStopped(@{@"target" : self.reactTag});
         }
         break;
       case VLCMediaPlayerStateBuffering:
@@ -279,7 +279,7 @@ static NSString *const playbackRate = @"rate";
             }
           }
           if (self.onVideoBuffering) {
-            self.onVideoBuffering();
+            self.onVideoBuffering(@{@"target" : self.reactTag});
           }
         }
         break;
@@ -287,6 +287,7 @@ static NSString *const playbackRate = @"rate";
         _paused = NO;
         if (self.onVideoPlaying && _player && _player.media) {
           self.onVideoPlaying(@{
+            @"target" : self.reactTag,
             @"seekable" : [NSNumber numberWithBool:[_player isSeekable]],
             @"duration" :
                 [NSNumber numberWithInt:[_player.media.length intValue]]
@@ -295,7 +296,7 @@ static NSString *const playbackRate = @"rate";
         break;
       case VLCMediaPlayerStateError:
         if (self.onVideoError) {
-          self.onVideoError();
+          self.onVideoError(@{@"target" : self.reactTag});
         }
         [self _release];
         break;
@@ -309,7 +310,7 @@ static NSString *const playbackRate = @"rate";
         [self _release];
       }
     }
-  })
+  });
 }
 
 //   ===== media delegate methods =====
