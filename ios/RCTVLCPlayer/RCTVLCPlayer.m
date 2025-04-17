@@ -3,11 +3,11 @@
 #import "React/RCTConvert.h"
 #import "React/RCTEventDispatcher.h"
 #import "React/UIView+React.h"
-#import <VLCKit/VLCKit.h>
 #import <AVFoundation/AVFoundation.h>
 #import <UIKit/UIDevice.h>
 #import <UIKit/UIKit.h>
 #import <UIKit/UIWindowScene.h>
+#import <VLCKit/VLCKit.h>
 
 static NSString *const statusKeyPath = @"status";
 static NSString *const playbackLikelyToKeepUpKeyPath =
@@ -330,8 +330,8 @@ static NSString *const playbackRate = @"rate";
     NSMutableArray *tracks = [NSMutableArray new];
 
     for (NSUInteger i = 0; i < audioTracks.count; i++) {
-      NSDictionary *track = audioTracks[i];
-      NSNumber *trackId = track[@"trackId"];
+      VLCMediaPlayerTrack *track = audioTracks[i];
+      NSNumber *trackId = @(track.index);
       if (trackId) {
         [tracks
             addObject:@{@"id" : trackId, @"isDefault" : @(track.isSelected)}];
@@ -349,8 +349,8 @@ static NSString *const playbackRate = @"rate";
     NSMutableArray *tracks = [NSMutableArray new];
 
     for (NSUInteger i = 0; i < subtitleTracks.count; i++) {
-      NSDictionary *track = subtitleTracks[i];
-      NSNumber *trackId = track[@"trackId"];
+      VLCMediaPlayerTrack *track = subtitleTracks[i];
+      NSNumber *trackId = @(track.index);
       if (trackId) {
         [tracks
             addObject:@{@"id" : trackId, @"isDefault" : @(track.isSelected)}];
@@ -424,10 +424,10 @@ static NSString *const playbackRate = @"rate";
 
 - (void)setAudioTrack:(int)track {
   if (_player) {
-    NSArray *audioTracks = [_player.audioTracks];
+    NSArray *audioTracks = [_player audioTracks];
     NSInteger count = audioTracks.count;
 
-    if (track < count) {
+    if (track >= 0 && track < count) {
       VLCMediaPlayerTrack *track = audioTracks[track];
     }
   }
@@ -435,7 +435,7 @@ static NSString *const playbackRate = @"rate";
 
 - (void)setTextTrack:(int)track {
   if (_player) {
-    NSArray *textTracks = [_player.textTracks];
+    NSArray *textTracks = [_player textTracks];
     NSInteger count = textTracks.count;
 
     if (track >= 0 && track < count) {
