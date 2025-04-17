@@ -307,7 +307,7 @@ static NSString *const playbackRate = @"rate";
 - (NSDictionary *)getVideoInfo {
   NSMutableDictionary *info = [NSMutableDictionary new];
   info[@"duration"] = _player.media.length.value;
-  int i;
+  
   if (_player.videoSize.width > 0) {
     info[@"videoSize"] = @{
       @"width" : @(_player.videoSize.width),
@@ -315,32 +315,28 @@ static NSString *const playbackRate = @"rate";
     };
   }
 
-  if (_player.numberOfAudioTracks > 0) {
+  if (_player.audioTracks.count > 0) {
     NSMutableArray *tracks = [NSMutableArray new];
-    for (i = 0; i < _player.numberOfAudioTracks; i++) {
-      if (_player.audioTrackIndexes[i] && _player.audioTrackNames[i]) {
+    for (VLCMediaPlayerTrack *track in _player.audioTracks) {
+      if (track) {
         [tracks addObject:@{
-          @"id" : _player.audioTrackIndexes[i],
-          @"name" : _player.audioTrackNames[i],
-          @"isDefault" : [NSNumber
-              numberWithBool:[_player.audioTrackIndexes[i] intValue] ==
-                             _player.currentAudioTrackIndex]
+          @"id" : @(track.trackId),
+          @"name" : track.name ?: @"",
+          @"isDefault" : @(track.trackId == _player.currentAudioTrack)
         }];
       }
     }
     info[@"audioTracks"] = tracks;
   }
 
-  if (_player.numberOfSubtitlesTracks > 0) {
+  if (_player.subtitleTracks.count > 0) {
     NSMutableArray *tracks = [NSMutableArray new];
-    for (i = 0; i < _player.numberOfSubtitlesTracks; i++) {
-      if (_player.videoSubTitlesIndexes[i] && _player.videoSubTitlesNames[i]) {
+    for (VLCMediaPlayerTrack *track in _player.subtitleTracks) {
+      if (track) {
         [tracks addObject:@{
-          @"id" : _player.videoSubTitlesIndexes[i],
-          @"name" : _player.videoSubTitlesNames[i],
-          @"isDefault" : [NSNumber
-              numberWithBool:[_player.videoSubTitlesIndexes[i] intValue] ==
-                             _player.currentVideoSubTitleIndex]
+          @"id" : @(track.trackId),
+          @"name" : track.name ?: @"",
+          @"isDefault" : @(track.trackId == _player.currentSubtitleTrack)
         }];
       }
     }
@@ -408,11 +404,11 @@ static NSString *const playbackRate = @"rate";
 }
 
 - (void)setAudioTrack:(int)track {
-  [_player setCurrentAudioTrackIndex:track];
+  [_player setCurrentAudioTrack:track];
 }
 
 - (void)setTextTrack:(int)track {
-  [_player setCurrentVideoSubTitleIndex:track];
+  [_player setCurrentSubtitleTrack:track];
 }
 
 - (void)setVideoAspectRatio:(NSString *)ratio {
