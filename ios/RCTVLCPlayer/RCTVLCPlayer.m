@@ -97,41 +97,83 @@ static NSString *const playbackRate = @"rate";
 }
 
 - (void)setSource:(NSDictionary *)source {
+  // 先停止当前播放
   if (_player) {
     [self _release];
   }
 
-  _videoInfo = nil;
+  // 检查source参数
+  if (!source || ![source isKindOfClass:[NSDictionary class]]) {
+    return;
+  }
 
-  // [bavv edit start]
+  // 获取并验证URI
   NSString *uriString = [source objectForKey:@"uri"];
+  if (!uriString || ![uriString isKindOfClass:[NSString class]]) {
+    return;
+  }
+
   NSURL *uri = [NSURL URLWithString:uriString];
-  int initType = [source objectForKey:@"initType"];
+  if (!uri) {
+    return;
+  }
+
+  // 获取初始化类型，默认为0
+  NSNumber *initTypeNum = [source objectForKey:@"initType"];
+  int initType =
+      [initTypeNum isKindOfClass:[NSNumber class]] ? [initTypeNum intValue] : 0;
+
+  // 获取初始化选项
   NSDictionary *initOptions = [source objectForKey:@"initOptions"];
-
-  if (initType == 1) {
-    _player = [[VLCMediaPlayer alloc] init];
-  } else {
-    _player = [[VLCMediaPlayer alloc] initWithOptions:initOptions];
-  }
-  _player.delegate = self;
-  _player.drawable = self;
-
-  // [bavv edit end]
-
-  _player.media = [VLCMedia mediaWithURL:uri];
-
-  // 根据repeat属性设置循环播放
-  if (_repeat) {
-    [_player.media addOption:@"--input-repeat=1000"];
-  } else {
-    [_player.media addOption:@"--input-repeat=0"];
+  if (initOptions && ![initOptions isKindOfClass:[NSDictionary class]]) {
+    initOptions = nil;
   }
 
-  [[AVAudioSession sharedInstance]
-        setActive:NO
-      withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation
-            error:nil];
+  // 创建新的播放器实例
+  @try {
+    if (initType == 1) {
+      _player = [[VLCMediaPlayer alloc] init];
+    } else {
+      _player = [[VLCMediaPlayer alloc] initWithOptions:initOptions];
+    }
+
+    if (!_player) {
+      return;
+    }
+
+    _player.delegate = self;
+    _player.drawable = self;
+
+    // 设置媒体源
+    VLCMedia *media = [VLCMedia mediaWithURL:uri];
+    if (!media) {
+      [self _release];
+      return;
+    }
+
+    _player.media = media;
+
+    // 设置循环播放
+    if (_repeat) {
+      [_player.media addOption:@"--input-repeat=1000"];
+    } else {
+      [_player.media addOption:@"--input-repeat=0"];
+    }
+
+    // 设置音频会话
+    [[AVAudioSession sharedInstance]
+          setActive:NO
+        withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation
+              error:nil];
+
+    // 触发播放（如果需要）
+    if (!_paused) {
+      [_player play];
+    }
+  } @catch (NSException *exception) {
+    [self _release];
+    return;
+  }
 }
 
 - (void)setAutoplay:(BOOL)autoplay {
@@ -465,13 +507,13 @@ static NSString *const playbackRate = @"rate";
 }
 
 - (void)_release {
-  if (_player.media)
-    [_player stop];
-
-  if (_player)
-    _player = nil;
-
-  _eventDispatcher = nil;
+  if (_player) {
+    [_player pause]; // 停止播放
+    _player = nil;   // 释放播放器
+  }
+  _videoInfo = nil;
+  _paused = YES;
+  _eventDispatcher = nil; // 可选，视情况而定
 }
 
 #pragma mark - Lifecycle
