@@ -34,8 +34,7 @@ static NSString *const playbackRate = @"rate";
   BOOL _paused;
   BOOL _autoplay;
   BOOL _repeat;
-  BOOL _isFullscreen;
-  BOOL _isUpdatingLayout; // 新增变量，防止layoutSubviews中的无限循环
+  BOOL _isUpdatingLayout;
 
   int _startTime;
 
@@ -531,56 +530,63 @@ static NSString *const playbackRate = @"rate";
 
 // 处理方向变化的函数
 - (void)orientationDidChange:(NSNotification *)notification {
-  if (UIDeviceOrientationIsLandscape(orientation) ||
-      UIDeviceOrientationIsPortrait(orientation)) {
+  UIDeviceOrientation deviceOrientation =
+      [[UIDevice currentDevice] orientation];
+
+  if (UIDeviceOrientationIsLandscape(deviceOrientation) ||
+      UIDeviceOrientationIsPortrait(deviceOrientation)) {
     _isUpdatingLayout = YES;
 
     // 先确保父视图布局更新完成
     [self.superview setNeedsLayout];
     [self.superview layoutIfNeeded];
 
-    // 延迟执行动画，避免阻塞 SafeAreaView 更新
-    dispatch_after(
-        dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)),
-        dispatch_get_main_queue(), ^{
-          // 记录旋转前的 frame 作为动画起点
-          CGRect originalFrame = self.frame;
-          CGRect targetFrame = self.frame; // 此时已经是更新后的 frame
+    // 记录旋转前的frame作为动画起点
+    CGRect originalFrame = self.frame;
 
-          self.frame = originalFrame; // 恢复到起点以开始动画
+    // 计算旋转角度
+    CGFloat rotationAngle = 0.0;
+    if (deviceOrientation == UIDeviceOrientationLandscapeLeft) {
+      rotationAngle = M_PI_2; // 90度
+    } else if (deviceOrientation == UIDeviceOrientationLandscapeRight) {
+      rotationAngle = -M_PI_2; // -90度
+    } else if (deviceOrientation == UIDeviceOrientationPortraitUpsideDown) {
+      rotationAngle = M_PI; // 180度
+    }
 
-          // 计算旋转角度
-          CGFloat rotationAngle = 0.0;
-          if (orientation == UIDeviceOrientationLandscapeLeft) {
-            rotationAngle = M_PI_2; // 90度
-          } else if (orientation == UIDeviceOrientationLandscapeRight) {
-            rotationAngle = -M_PI_2; // -90度
-          } else if (orientation == UIDeviceOrientationPortraitUpsideDown) {
-            rotationAngle = M_PI; // 180度
-          }
+    // 获取屏幕尺寸
+    CGRect screenBounds = [UIScreen mainScreen].bounds;
+    CGFloat maxSize = MAX(screenBounds.size.width, screenBounds.size.height);
+    CGFloat minSize = MIN(screenBounds.size.width, screenBounds.size.height);
 
-          // 使用 UIView 动画同时实现旋转过程动画和宽高变化动画
-          [UIView animateWithDuration:0.3
-              delay:0.0
-              options:UIViewAnimationOptionCurveEaseInOut |
-                      UIViewAnimationOptionBeginFromCurrentState
-              animations:^{
-                // 旋转过程动画
-                self.transform = CGAffineTransformMakeRotation(rotationAngle);
-                // 宽高变化动画
-                self.frame = targetFrame;
-                // 同步更新 VLC 设置
-                [self setResizeMode:self->_resizeMode];
-              }
-              completion:^(BOOL finished) {
-                // 动画完成后重置变换并确保布局一致
-                self.transform = CGAffineTransformIdentity;
-                self.frame = targetFrame;
-                [self setNeedsLayout];
-                [self layoutIfNeeded];
-                self->_isUpdatingLayout = NO;
-              }];
-        });
+    // 计算目标frame
+    CGRect targetFrame;
+    if (UIDeviceOrientationIsLandscape(deviceOrientation)) {
+      targetFrame = CGRectMake(0, 0, maxSize, minSize);
+    } else {
+      targetFrame = CGRectMake(0, 0, minSize, maxSize);
+    }
+
+    // 使用 UIView 动画同时实现旋转过程动画和宽高变化动画
+    [UIView animateWithDuration:0.3
+        delay:0.0
+        options:UIViewAnimationOptionCurveEaseInOut |
+                UIViewAnimationOptionBeginFromCurrentState
+        animations:^{
+          // 旋转过程动画
+          self.transform = CGAffineTransformMakeRotation(rotationAngle);
+          // 宽高变化动画
+          self.frame = targetFrame;
+          // 同步更新 VLC 设置
+          [self setResizeMode:self->_resizeMode];
+        }
+        completion:^(BOOL finished) {
+          // 动画完成后确保布局一致
+          [self setNeedsLayout];
+          [self layoutIfNeeded];
+          self->_isUpdatingLayout = NO;
+        }];
   }
+}
 
-  @end
+@end
