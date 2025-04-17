@@ -240,74 +240,76 @@ static NSString *const playbackRate = @"rate";
     return;
   }
 
-  @try {
-    VLCMediaPlayerState state = _player.state;
-    switch (state) {
-    case VLCMediaPlayerStateOpening:
-      if (self.onVideoOpen) {
-        self.onVideoOpen(@{@"target" : self.reactTag});
-      }
-      if (self.onVideoLoadStart) {
-        self.onVideoLoadStart(@{@"target" : self.reactTag});
-      }
-      break;
-    case VLCMediaPlayerStatePaused:
-      _paused = YES;
-      if (self.onVideoPaused) {
-        self.onVideoPaused(@{@"target" : self.reactTag});
-      }
-      break;
-    case VLCMediaPlayerStateStopped:
-      if (self.onVideoStopped) {
-        self.onVideoStopped(@{@"target" : self.reactTag});
-      }
-      break;
-    case VLCMediaPlayerStateBuffering:
-      if (!_videoInfo) {
-        // 获取音频轨道
-        NSArray *audioTracks = [_player audioTracks];
-        if (audioTracks && audioTracks.count > 0) {
-          _videoInfo = [self getVideoInfo];
+  dispatch_async(dispatch_get_main_queue(), ^{
+    @try {
+      VLCMediaPlayerState state = _player.state;
+      switch (state) {
+      case VLCMediaPlayerStateOpening:
+        if (self.onVideoOpen) {
+          self.onVideoOpen();
+        }
+        if (self.onVideoLoadStart) {
+          self.onVideoLoadStart();
+        }
+        break;
+      case VLCMediaPlayerStatePaused:
+        _paused = YES;
+        if (self.onVideoPaused) {
+          self.onVideoPaused();
+        }
+        break;
+      case VLCMediaPlayerStateStopped:
+        if (self.onVideoStopped) {
+          self.onVideoStopped();
+        }
+        break;
+      case VLCMediaPlayerStateBuffering:
+        if (!_videoInfo) {
+          // 获取音频轨道
+          NSArray *audioTracks = [_player audioTracks];
+          if (audioTracks && audioTracks.count > 0) {
+            _videoInfo = [self getVideoInfo];
 
-          // 直接调用setStartTime方法，传入当前的_startTime值
-          if (_startTime > 0) {
-            [self setStartTime:_startTime];
+            // 直接调用setStartTime方法，传入当前的_startTime值
+            if (_startTime > 0) {
+              [self setStartTime:_startTime];
+            }
+            if (self.onVideoLoad && _videoInfo) {
+              self.onVideoLoad(_videoInfo);
+            }
           }
-          if (self.onVideoLoad && _videoInfo) {
-            self.onVideoLoad(_videoInfo);
+          if (self.onVideoBuffering) {
+            self.onVideoBuffering();
           }
         }
-        if (self.onVideoBuffering) {
-          self.onVideoBuffering(@{@"target" : self.reactTag});
+        break;
+      case VLCMediaPlayerStatePlaying:
+        _paused = NO;
+        if (self.onVideoPlaying && _player && _player.media) {
+          self.onVideoPlaying(@{
+            @"seekable" : [NSNumber numberWithBool:[_player isSeekable]],
+            @"duration" :
+                [NSNumber numberWithInt:[_player.media.length intValue]]
+          });
         }
+        break;
+      case VLCMediaPlayerStateError:
+        if (self.onVideoError) {
+          self.onVideoError();
+        }
+        [self _release];
+        break;
+      default:
+        break;
       }
-      break;
-    case VLCMediaPlayerStatePlaying:
-      _paused = NO;
-      if (self.onVideoPlaying && _player && _player.media) {
-        self.onVideoPlaying(@{
-          @"target" : self.reactTag,
-          @"seekable" : [NSNumber numberWithBool:[_player isSeekable]],
-          @"duration" : [NSNumber numberWithInt:[_player.media.length intValue]]
-        });
+    } @catch (NSException *exception) {
+      NSLog(@"VLC播放器状态变化处理异常: %@", exception);
+      // 如果发生异常，尝试释放播放器
+      if (_player) {
+        [self _release];
       }
-      break;
-    case VLCMediaPlayerStateError:
-      if (self.onVideoError) {
-        self.onVideoError(@{@"target" : self.reactTag});
-      }
-      [self _release];
-      break;
-    default:
-      break;
     }
-  } @catch (NSException *exception) {
-    NSLog(@"VLC播放器状态变化处理异常: %@", exception);
-    // 如果发生异常，尝试释放播放器
-    if (_player) {
-      [self _release];
-    }
-  }
+  })
 }
 
 //   ===== media delegate methods =====
@@ -517,56 +519,54 @@ static NSString *const playbackRate = @"rate";
   if (_isUpdatingLayout) {
     return;
   }
-  
+
   _isUpdatingLayout = YES;
 
   // 使用 UIView 动画为布局变化添加平滑效果（参考 VLC for iOS）
-  [UIView
-      animateWithDuration:0.3
-                    delay:0.0
-                  options:UIViewAnimationOptionCurveEaseInOut |
-                          UIViewAnimationOptionBeginFromCurrentState
-               animations:^{
-                 if ([resizeMode isEqualToString:@"cover"]) {
-                   CGRect viewBounds = self.bounds;
-                   float videoWidth = self->_player.videoSize.width;
-                   float videoHeight = self->_player.videoSize.height;
+  [UIView animateWithDuration:0.3
+      delay:0.0
+      options:UIViewAnimationOptionCurveEaseInOut |
+              UIViewAnimationOptionBeginFromCurrentState
+      animations:^{
+        if ([resizeMode isEqualToString:@"cover"]) {
+          CGRect viewBounds = self.bounds;
+          float videoWidth = self->_player.videoSize.width;
+          float videoHeight = self->_player.videoSize.height;
 
-                   if (viewBounds.size.width > 0 &&
-                       viewBounds.size.height > 0 && videoWidth > 0 &&
-                       videoHeight > 0) {
-                     float viewWidth = viewBounds.size.width;
-                     float viewHeight = viewBounds.size.height;
-                     float viewAspect = viewWidth / viewHeight;
-                     float videoAspect = videoWidth / videoHeight;
-                     float scale = 1.0;
+          if (viewBounds.size.width > 0 && viewBounds.size.height > 0 &&
+              videoWidth > 0 && videoHeight > 0) {
+            float viewWidth = viewBounds.size.width;
+            float viewHeight = viewBounds.size.height;
+            float viewAspect = viewWidth / viewHeight;
+            float videoAspect = videoWidth / videoHeight;
+            float scale = 1.0;
 
-                     if (viewAspect > videoAspect) {
-                       scale = viewWidth / videoWidth;
-                     } else {
-                       scale = viewHeight / videoHeight;
-                     }
+            if (viewAspect > videoAspect) {
+              scale = viewWidth / videoWidth;
+            } else {
+              scale = viewHeight / videoHeight;
+            }
 
-                     int cropWidth = viewWidth * scale;
-                     int cropHeight = viewHeight * scale;
+            int cropWidth = viewWidth * scale;
+            int cropHeight = viewHeight * scale;
 
-                     // 使用新的API设置裁剪比例
-                     [self->_player setCropRatioWithNumerator:cropWidth
-                                                  denominator:cropHeight];
-                     [self->_player setVideoAspectRatio:NULL];
-                   } else {
-                     [self->_player setCropRatioWithNumerator:1 denominator:0];
-                     [self->_player setVideoAspectRatio:NULL];
-                   }
-                 } else {
-                   [self->_player setCropRatioWithNumerator:1 denominator:0];
-                   [self->_player setVideoAspectRatio:NULL];
-                 }
-               }
-               completion:^(BOOL finished) {
-                 // 避免在动画块中调用layoutIfNeeded，它可能会触发layoutSubviews
-                 self->_isUpdatingLayout = NO;
-               }];
+            // 使用新的API设置裁剪比例
+            [self->_player setCropRatioWithNumerator:cropWidth
+                                         denominator:cropHeight];
+            [self->_player setVideoAspectRatio:NULL];
+          } else {
+            [self->_player setCropRatioWithNumerator:1 denominator:0];
+            [self->_player setVideoAspectRatio:NULL];
+          }
+        } else {
+          [self->_player setCropRatioWithNumerator:1 denominator:0];
+          [self->_player setVideoAspectRatio:NULL];
+        }
+      }
+      completion:^(BOOL finished) {
+        // 避免在动画块中调用layoutIfNeeded，它可能会触发layoutSubviews
+        self->_isUpdatingLayout = NO;
+      }];
 }
 
 // 重写layoutSubviews方法来处理旋转后的布局
@@ -574,7 +574,7 @@ static NSString *const playbackRate = @"rate";
   [super layoutSubviews];
   // 当视图的 bounds 改变时（例如旋转完成或父视图调整），
   // 确保视频的 resizeMode 被重新应用以匹配新的尺寸。
-  
+
   // 只有当不在布局更新过程中，且播放器和resizeMode都有效时，才应用resizeMode
   if (!_isUpdatingLayout && _player && _resizeMode && self.window != nil) {
     // 避免快速连续调用
@@ -594,13 +594,18 @@ static NSString *const playbackRate = @"rate";
       [_player pause]; // 停止播放
       _player.delegate = nil;
       _player.drawable = nil;
-      _player = nil;   // 释放播放器
+      _player = nil; // 释放播放器
     }
     _videoInfo = nil;
     _paused = YES;
   } @catch (NSException *exception) {
     NSLog(@"VLC播放器释放异常: %@", exception);
   }
+}
+
+- (void)dealloc {
+  [[NSNotificationCenter defaultCenter] removeObserver:self];
+  [self _release];
 }
 
 #pragma mark - Lifecycle
@@ -623,7 +628,7 @@ static NSString *const playbackRate = @"rate";
     if (_isUpdatingLayout) {
       return;
     }
-    
+
     _isUpdatingLayout = YES;
 
     // 先确保父视图布局更新完成
