@@ -331,7 +331,7 @@ static NSString *const playbackRate = @"rate";
 
     for (NSUInteger i = 0; i < audioTracks.count; i++) {
       VLCMediaPlayerTrack *track = audioTracks[i];
-      NSNumber *trackId = [audioTracks indexOfObject:track];
+      NSNumber *trackId = @([audioTracks indexOfObject:track]);
       if (trackId) {
         [tracks
             addObject:@{@"id" : trackId, @"isDefault" : @(track.isSelected)}];
@@ -350,7 +350,7 @@ static NSString *const playbackRate = @"rate";
 
     for (NSUInteger i = 0; i < subtitleTracks.count; i++) {
       VLCMediaPlayerTrack *track = subtitleTracks[i];
-      NSNumber *trackId = [subtitleTracks indexOfObject:track];
+      NSNumber *trackId = @([subtitleTracks indexOfObject:track]);
       if (trackId) {
         [tracks
             addObject:@{@"id" : trackId, @"isDefault" : @(track.isSelected)}];
@@ -426,7 +426,7 @@ static NSString *const playbackRate = @"rate";
   NSUInteger trackIndex = track; // 假设 track 是传入的索引值
   if (_player) {
     NSArray *audioTracks = [_player audioTracks];
-    NSNumber count = audioTracks.count;
+    NSUInteger count = audioTracks.count;
 
     if (trackIndex >= 0 && trackIndex < count) {
       VLCMediaPlayerTrack *track = audioTracks[trackIndex];
@@ -438,7 +438,7 @@ static NSString *const playbackRate = @"rate";
   NSUInteger trackIndex = track; // 假设 track 是传入的索引值
   if (_player) {
     NSArray *textTracks = [_player textTracks];
-    NSNumber count = textTracks.count;
+    NSUInteger count = textTracks.count;
 
     if (trackIndex >= 0 && trackIndex < count) {
       VLCMediaPlayerTrack *track = textTracks[trackIndex];
