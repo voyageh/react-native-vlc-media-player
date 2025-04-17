@@ -242,16 +242,20 @@ static NSString *const playbackRate = @"rate";
       self.onVideoStopped(@{@"target" : self.reactTag});
       break;
     case VLCMediaPlayerStateBuffering:
-      if (!_videoInfo && _player.numberOfAudioTracks > 0) {
-        _videoInfo = [self getVideoInfo];
+      if (!_videoInfo) {
+        // 获取音频轨道
+        NSArray *audioTracks = [_player audioTrackNames];
+        if (audioTracks && audioTracks.count > 0) {
+          _videoInfo = [self getVideoInfo];
 
-        // 直接调用setStartTime方法，传入当前的_startTime值
-        if (_startTime > 0) {
-          [self setStartTime:_startTime];
+          // 直接调用setStartTime方法，传入当前的_startTime值
+          if (_startTime > 0) {
+            [self setStartTime:_startTime];
+          }
+          self.onVideoLoad(_videoInfo);
         }
-        self.onVideoLoad(_videoInfo);
+        self.onVideoBuffering(@{@"target" : self.reactTag});
       }
-      self.onVideoBuffering(@{@"target" : self.reactTag});
       break;
     case VLCMediaPlayerStatePlaying:
       _paused = NO;
@@ -315,31 +319,39 @@ static NSString *const playbackRate = @"rate";
     };
   }
 
-  if (_player.audioTracks.count > 0) {
+  // 获取音频轨道
+  NSArray *audioTrackNames = [_player audioTrackNames];
+  NSArray *audioTrackIndexes = [_player audioTrackIndexes];
+  if (audioTrackNames.count > 0 && audioTrackIndexes.count > 0) {
     NSMutableArray *tracks = [NSMutableArray new];
-    for (VLCMediaPlayerTrack *track in _player.audioTracks) {
-      if (track) {
-        [tracks addObject:@{
-          @"id" : @(track.trackId),
-          @"name" : track.name ?: @"",
-          @"isDefault" : @(track.trackId == _player.currentAudioTrack)
-        }];
-      }
+    int currentAudioTrack = [_player currentAudioTrackIndex];
+    
+    for (NSUInteger i = 0; i < audioTrackNames.count && i < audioTrackIndexes.count; i++) {
+      [tracks addObject:@{
+        @"id" : audioTrackIndexes[i],
+        @"name" : audioTrackNames[i],
+        @"isDefault" : @([audioTrackIndexes[i] intValue] == currentAudioTrack)
+      }];
     }
+    
     info[@"audioTracks"] = tracks;
   }
 
-  if (_player.subtitleTracks.count > 0) {
+  // 获取字幕轨道
+  NSArray *subtitleNames = [_player videoSubtitlesNames];
+  NSArray *subtitleIndexes = [_player videoSubtitlesIndexes];
+  if (subtitleNames.count > 0 && subtitleIndexes.count > 0) {
     NSMutableArray *tracks = [NSMutableArray new];
-    for (VLCMediaPlayerTrack *track in _player.subtitleTracks) {
-      if (track) {
-        [tracks addObject:@{
-          @"id" : @(track.trackId),
-          @"name" : track.name ?: @"",
-          @"isDefault" : @(track.trackId == _player.currentSubtitleTrack)
-        }];
-      }
+    int currentSubtitleTrack = [_player currentVideoSubTitleIndex];
+    
+    for (NSUInteger i = 0; i < subtitleNames.count && i < subtitleIndexes.count; i++) {
+      [tracks addObject:@{
+        @"id" : subtitleIndexes[i],
+        @"name" : subtitleNames[i],
+        @"isDefault" : @([subtitleIndexes[i] intValue] == currentSubtitleTrack)
+      }];
     }
+    
     info[@"textTracks"] = tracks;
   }
 
@@ -404,11 +416,11 @@ static NSString *const playbackRate = @"rate";
 }
 
 - (void)setAudioTrack:(int)track {
-  [_player setCurrentAudioTrack:track];
+  [_player setCurrentAudioTrackIndex:track];
 }
 
 - (void)setTextTrack:(int)track {
-  [_player setCurrentSubtitleTrack:track];
+  [_player setCurrentVideoSubTitleIndex:track];
 }
 
 - (void)setVideoAspectRatio:(NSString *)ratio {
@@ -473,17 +485,15 @@ static NSString *const playbackRate = @"rate";
                          int cropWidth = viewWidth * scale;
                          int cropHeight = viewHeight * scale;
 
-                         NSString *cropGeometry = [NSString
-                             stringWithFormat:@"%d:%d", cropWidth, cropHeight];
-                         self->_player.videoCropGeometry =
-                             cropGeometry.UTF8String;
+                         // 使用新的API设置裁剪比例
+                         [self->_player setCropRatioWithNumerator:cropWidth denominator:cropHeight];
                          [self->_player setVideoAspectRatio:NULL];
                        } else {
-                         self->_player.videoCropGeometry = NULL;
+                         [self->_player setCropRatioWithNumerator:1 denominator:0];
                          [self->_player setVideoAspectRatio:NULL];
                        }
                      } else {
-                       self->_player.videoCropGeometry = NULL;
+                       [self->_player setCropRatioWithNumerator:1 denominator:0];
                        [self->_player setVideoAspectRatio:NULL];
                      }
                      [self setNeedsLayout];
