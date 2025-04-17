@@ -3,11 +3,7 @@
 #import "React/RCTConvert.h"
 #import "React/RCTEventDispatcher.h"
 #import "React/UIView+React.h"
-#if TARGET_OS_TV
-#import <TVVLCKit/TVVLCKit.h>
-#else
-#import <MobileVLCKit/MobileVLCKit.h>
-#endif
+#import <VLCKit/VLCKit.h>
 #import <AVFoundation/AVFoundation.h>
 #import <UIKit/UIDevice.h>
 #import <UIKit/UIKit.h>
