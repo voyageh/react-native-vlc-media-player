@@ -230,21 +230,37 @@ static NSString *const playbackRate = @"rate";
 }
 
 - (void)mediaPlayerStateChanged:(NSNotification *)aNotification {
+  // 防止在对象被释放后调用此方法，提前检查self是否有效
+  if (!self || !aNotification) {
+    return;
+  }
 
-  NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-  if (_player) {
+  // 检查播放器是否有效
+  if (!_player) {
+    return;
+  }
+
+  @try {
     VLCMediaPlayerState state = _player.state;
     switch (state) {
     case VLCMediaPlayerStateOpening:
-      self.onVideoOpen(@{@"target" : self.reactTag});
-      self.onVideoLoadStart(@{@"target" : self.reactTag});
+      if (self.onVideoOpen) {
+        self.onVideoOpen(@{@"target" : self.reactTag});
+      }
+      if (self.onVideoLoadStart) {
+        self.onVideoLoadStart(@{@"target" : self.reactTag});
+      }
       break;
     case VLCMediaPlayerStatePaused:
       _paused = YES;
-      self.onVideoPaused(@{@"target" : self.reactTag});
+      if (self.onVideoPaused) {
+        self.onVideoPaused(@{@"target" : self.reactTag});
+      }
       break;
     case VLCMediaPlayerStateStopped:
-      self.onVideoStopped(@{@"target" : self.reactTag});
+      if (self.onVideoStopped) {
+        self.onVideoStopped(@{@"target" : self.reactTag});
+      }
       break;
     case VLCMediaPlayerStateBuffering:
       if (!_videoInfo) {
@@ -257,25 +273,39 @@ static NSString *const playbackRate = @"rate";
           if (_startTime > 0) {
             [self setStartTime:_startTime];
           }
-          self.onVideoLoad(_videoInfo);
+          if (self.onVideoLoad && _videoInfo) {
+            self.onVideoLoad(_videoInfo);
+          }
         }
-        self.onVideoBuffering(@{@"target" : self.reactTag});
+        if (self.onVideoBuffering) {
+          self.onVideoBuffering(@{@"target" : self.reactTag});
+        }
       }
       break;
     case VLCMediaPlayerStatePlaying:
       _paused = NO;
-      self.onVideoPlaying(@{
-        @"target" : self.reactTag,
-        @"seekable" : [NSNumber numberWithBool:[_player isSeekable]],
-        @"duration" : [NSNumber numberWithInt:[_player.media.length intValue]]
-      });
+      if (self.onVideoPlaying && _player && _player.media) {
+        self.onVideoPlaying(@{
+          @"target" : self.reactTag,
+          @"seekable" : [NSNumber numberWithBool:[_player isSeekable]],
+          @"duration" : [NSNumber numberWithInt:[_player.media.length intValue]]
+        });
+      }
       break;
     case VLCMediaPlayerStateError:
-      self.onVideoError(@{@"target" : self.reactTag});
+      if (self.onVideoError) {
+        self.onVideoError(@{@"target" : self.reactTag});
+      }
       [self _release];
       break;
     default:
       break;
+    }
+  } @catch (NSException *exception) {
+    NSLog(@"VLC播放器状态变化处理异常: %@", exception);
+    // 如果发生异常，尝试释放播放器
+    if (_player) {
+      [self _release];
     }
   }
 }
@@ -559,15 +589,18 @@ static NSString *const playbackRate = @"rate";
 }
 
 - (void)_release {
-  if (_player) {
-    [_player pause]; // 停止播放
-    _player = nil;   // 释放播放器
-    _player.delegate = nil;
-    _player.drawable = nil;
+  @try {
+    if (_player) {
+      [_player pause]; // 停止播放
+      _player.delegate = nil;
+      _player.drawable = nil;
+      _player = nil;   // 释放播放器
+    }
+    _videoInfo = nil;
+    _paused = YES;
+  } @catch (NSException *exception) {
+    NSLog(@"VLC播放器释放异常: %@", exception);
   }
-  _videoInfo = nil;
-  _paused = YES;
-  _eventDispatcher = nil; // 可选，视情况而定
 }
 
 #pragma mark - Lifecycle
