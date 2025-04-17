@@ -444,50 +444,52 @@ static NSString *const playbackRate = @"rate";
     return;
   }
 
-  if ([resizeMode isEqualToString:@"cover"]) {
-    CGRect viewBounds = self.bounds;
-    float videoWidth = _player.videoSize.width;
-    float videoHeight = _player.videoSize.height;
+  // 使用 UIView 动画为布局变化添加平滑效果（参考 VLC for iOS）
+  [UIView animateWithDuration:0.3
+                        delay:0.0
+                      options:UIViewAnimationOptionCurveEaseInOut |
+                              UIViewAnimationOptionBeginFromCurrentState
+                   animations:^{
+                     if ([resizeMode isEqualToString:@"cover"]) {
+                       CGRect viewBounds = self.bounds;
+                       float videoWidth = self->_player.videoSize.width;
+                       float videoHeight = self->_player.videoSize.height;
 
-    if (viewBounds.size.width > 0 && viewBounds.size.height > 0 &&
-        videoWidth > 0 && videoHeight > 0) {
-      float viewWidth = viewBounds.size.width;
-      float viewHeight = viewBounds.size.height;
-      float viewAspect = viewWidth / viewHeight;
-      float videoAspect = videoWidth / videoHeight;
-      float scale = 1.0;
+                       if (viewBounds.size.width > 0 &&
+                           viewBounds.size.height > 0 && videoWidth > 0 &&
+                           videoHeight > 0) {
+                         float viewWidth = viewBounds.size.width;
+                         float viewHeight = viewBounds.size.height;
+                         float viewAspect = viewWidth / viewHeight;
+                         float videoAspect = videoWidth / videoHeight;
+                         float scale = 1.0;
 
-      if (viewAspect > videoAspect) {
-        scale = viewWidth / videoWidth;
-      } else {
-        scale = viewHeight / videoHeight;
-      }
+                         if (viewAspect > videoAspect) {
+                           scale = viewWidth / videoWidth;
+                         } else {
+                           scale = viewHeight / videoHeight;
+                         }
 
-      int cropWidth = viewWidth * scale;
-      int cropHeight = viewHeight * scale;
+                         int cropWidth = viewWidth * scale;
+                         int cropHeight = viewHeight * scale;
 
-      NSString *cropGeometry =
-          [NSString stringWithFormat:@"%d:%d", cropWidth, cropHeight];
-
-      _player.videoCropGeometry = cropGeometry.UTF8String;
-      [_player setVideoAspectRatio:NULL];
-    } else {
-      _player.videoCropGeometry = NULL;
-      [_player setVideoAspectRatio:NULL];
-    }
-
-  } else if ([resizeMode isEqualToString:@"contain"]) {
-    // 对于 contain 模式，重置裁剪和宽高比，让 VLC 自行处理
-    _player.videoCropGeometry = NULL;
-    [_player setVideoAspectRatio:NULL];
-  } else {
-    // 默认情况同 contain
-
-    _player.videoCropGeometry = NULL;
-    [_player setVideoAspectRatio:NULL];
-  }
-  [self setNeedsLayout];
-  [self layoutIfNeeded];
+                         NSString *cropGeometry = [NSString
+                             stringWithFormat:@"%d:%d", cropWidth, cropHeight];
+                         self->_player.videoCropGeometry =
+                             cropGeometry.UTF8String;
+                         [self->_player setVideoAspectRatio:NULL];
+                       } else {
+                         self->_player.videoCropGeometry = NULL;
+                         [self->_player setVideoAspectRatio:NULL];
+                       }
+                     } else {
+                       self->_player.videoCropGeometry = NULL;
+                       [self->_player setVideoAspectRatio:NULL];
+                     }
+                     [self setNeedsLayout];
+                     [self layoutIfNeeded];
+                   }
+                   completion:nil];
 }
 
 // 重写layoutSubviews方法来处理旋转后的布局
@@ -510,6 +512,8 @@ static NSString *const playbackRate = @"rate";
   if (_player) {
     [_player pause]; // 停止播放
     _player = nil;   // 释放播放器
+    _player.delegate = nil;
+    _player.drawable = nil;
   }
   _videoInfo = nil;
   _paused = YES;
@@ -527,29 +531,56 @@ static NSString *const playbackRate = @"rate";
 
 // 处理方向变化的函数
 - (void)orientationDidChange:(NSNotification *)notification {
-  // 防止在布局更新过程中重复调用
-  if (_isUpdatingLayout) {
-    return;
-  }
-
-  UIDeviceOrientation orientation = [[UIDevice currentDevice] orientation];
-
-  // 仅处理有效的横竖屏切换
   if (UIDeviceOrientationIsLandscape(orientation) ||
       UIDeviceOrientationIsPortrait(orientation)) {
-    // NSLog(@"RCTVLCPlayer: Orientation changed, applying resizeMode: %@",
-    // self->_resizeMode); // Removed 标记我们正在处理方向变化，防止
-    // layoutSubviews 触发的 setResizeMode 冲突
     _isUpdatingLayout = YES;
-    // 直接调用 setResizeMode，此时 self.bounds 应该已经或即将更新
-    // setResizeMode 内部会根据新的 bounds 设置正确的 aspect ratio (for cover)
-    [self setResizeMode:self->_resizeMode];
 
-    // 完成后重置标记
-    _isUpdatingLayout = NO;
+    // 先确保父视图布局更新完成
+    [self.superview setNeedsLayout];
+    [self.superview layoutIfNeeded];
+
+    // 延迟执行动画，避免阻塞 SafeAreaView 更新
+    dispatch_after(
+        dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)),
+        dispatch_get_main_queue(), ^{
+          // 记录旋转前的 frame 作为动画起点
+          CGRect originalFrame = self.frame;
+          CGRect targetFrame = self.frame; // 此时已经是更新后的 frame
+
+          self.frame = originalFrame; // 恢复到起点以开始动画
+
+          // 计算旋转角度
+          CGFloat rotationAngle = 0.0;
+          if (orientation == UIDeviceOrientationLandscapeLeft) {
+            rotationAngle = M_PI_2; // 90度
+          } else if (orientation == UIDeviceOrientationLandscapeRight) {
+            rotationAngle = -M_PI_2; // -90度
+          } else if (orientation == UIDeviceOrientationPortraitUpsideDown) {
+            rotationAngle = M_PI; // 180度
+          }
+
+          // 使用 UIView 动画同时实现旋转过程动画和宽高变化动画
+          [UIView animateWithDuration:0.3
+              delay:0.0
+              options:UIViewAnimationOptionCurveEaseInOut |
+                      UIViewAnimationOptionBeginFromCurrentState
+              animations:^{
+                // 旋转过程动画
+                self.transform = CGAffineTransformMakeRotation(rotationAngle);
+                // 宽高变化动画
+                self.frame = targetFrame;
+                // 同步更新 VLC 设置
+                [self setResizeMode:self->_resizeMode];
+              }
+              completion:^(BOOL finished) {
+                // 动画完成后重置变换并确保布局一致
+                self.transform = CGAffineTransformIdentity;
+                self.frame = targetFrame;
+                [self setNeedsLayout];
+                [self layoutIfNeeded];
+                self->_isUpdatingLayout = NO;
+              }];
+        });
   }
-  // 注意：对于 FaceUp/FaceDown 等情况，我们不执行任何操作，也不重置标记，
-  // 因为 _isUpdatingLayout 在开始时就判断并返回了。
-}
 
-@end
+  @end
