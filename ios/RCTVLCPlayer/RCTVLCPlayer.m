@@ -480,9 +480,15 @@ static NSString *const playbackRate = @"rate";
   _resizeMode = resizeMode; // 保存当前的模式
 
   if (!_player) {
-
     return;
   }
+
+  // 防止递归调用
+  if (_isUpdatingLayout) {
+    return;
+  }
+  
+  _isUpdatingLayout = YES;
 
   // 使用 UIView 动画为布局变化添加平滑效果（参考 VLC for iOS）
   [UIView
@@ -526,10 +532,11 @@ static NSString *const playbackRate = @"rate";
                    [self->_player setCropRatioWithNumerator:1 denominator:0];
                    [self->_player setVideoAspectRatio:NULL];
                  }
-                 [self setNeedsLayout];
-                 [self layoutIfNeeded];
                }
-               completion:nil];
+               completion:^(BOOL finished) {
+                 // 避免在动画块中调用layoutIfNeeded，它可能会触发layoutSubviews
+                 self->_isUpdatingLayout = NO;
+               }];
 }
 
 // 重写layoutSubviews方法来处理旋转后的布局
@@ -537,14 +544,17 @@ static NSString *const playbackRate = @"rate";
   [super layoutSubviews];
   // 当视图的 bounds 改变时（例如旋转完成或父视图调整），
   // 确保视频的 resizeMode 被重新应用以匹配新的尺寸。
-  // 添加一个检查防止 _isUpdatingLayout 导致的潜在无限循环
-  // (虽然不太可能在这里发生)
-  if (!_isUpdatingLayout && _player && _resizeMode) {
-
-    _isUpdatingLayout = YES;
-    [self setResizeMode:_resizeMode];
-    // 更新完成后重置标记
-    _isUpdatingLayout = NO;
+  
+  // 只有当不在布局更新过程中，且播放器和resizeMode都有效时，才应用resizeMode
+  if (!_isUpdatingLayout && _player && _resizeMode && self.window != nil) {
+    // 避免快速连续调用
+    dispatch_async(dispatch_get_main_queue(), ^{
+      if (!self->_isUpdatingLayout) {
+        self->_isUpdatingLayout = YES;
+        [self setResizeMode:self->_resizeMode];
+        // 注意：setResizeMode方法内的completion块会重置_isUpdatingLayout标志
+      }
+    });
   }
 }
 
@@ -576,6 +586,11 @@ static NSString *const playbackRate = @"rate";
 
   if (UIDeviceOrientationIsLandscape(deviceOrientation) ||
       UIDeviceOrientationIsPortrait(deviceOrientation)) {
+    // 如果正在更新布局，则不处理方向变化
+    if (_isUpdatingLayout) {
+      return;
+    }
+    
     _isUpdatingLayout = YES;
 
     // 先确保父视图布局更新完成
@@ -618,14 +633,15 @@ static NSString *const playbackRate = @"rate";
           self.transform = CGAffineTransformMakeRotation(rotationAngle);
           // 宽高变化动画
           self.frame = targetFrame;
-          // 同步更新 VLC 设置
-          [self setResizeMode:self->_resizeMode];
         }
         completion:^(BOOL finished) {
-          // 动画完成后确保布局一致
-          [self setNeedsLayout];
-          [self layoutIfNeeded];
-          self->_isUpdatingLayout = NO;
+          // 执行一次单独的resizeMode设置，避免在动画块中调用可能触发layoutSubviews的方法
+          dispatch_async(dispatch_get_main_queue(), ^{
+            if (self->_player && self->_resizeMode) {
+              [self setResizeMode:self->_resizeMode];
+            }
+            self->_isUpdatingLayout = NO;
+          });
         }];
   }
 }
