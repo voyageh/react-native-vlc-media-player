@@ -3,9 +3,9 @@
 #import "React/RCTConvert.h"
 #import "React/RCTEventDispatcher.h"
 #import "React/UIView+React.h"
+#import <AVFoundation/AVFoundation.h>
 #import <UIKit/UIKit.h>
 #import <VLCKit/VLCKit.h>
-#import <AVFoundation/AVFoundation.h>
 
 static NSString *const statusKeyPath = @"status";
 static NSString *const playbackLikelyToKeepUpKeyPath =
@@ -115,7 +115,8 @@ static NSString *const playbackRate = @"rate";
 
   // 获取初始化类型，默认为0
   NSNumber *initTypeNum = [source objectForKey:@"initType"];
-  int initType = [initTypeNum isKindOfClass:[NSNumber class]] ? [initTypeNum intValue] : 0;
+  int initType =
+      [initTypeNum isKindOfClass:[NSNumber class]] ? [initTypeNum intValue] : 0;
 
   // 获取初始化选项
   NSDictionary *initOptions = [source objectForKey:@"initOptions"];
@@ -134,7 +135,8 @@ static NSString *const playbackRate = @"rate";
         for (NSString *key in initOptions) {
           id value = initOptions[key];
           if ([value isKindOfClass:[NSString class]]) {
-            [optionsArray addObject:[NSString stringWithFormat:@"%@=%@", key, value]];
+            [optionsArray
+                addObject:[NSString stringWithFormat:@"%@=%@", key, value]];
           }
         }
         options = optionsArray;
@@ -166,9 +168,10 @@ static NSString *const playbackRate = @"rate";
     }
 
     // 设置音频会话
-    [[AVAudioSession sharedInstance] setActive:NO
-                                  withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation
-                                        error:nil];
+    [[AVAudioSession sharedInstance]
+          setActive:NO
+        withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation
+              error:nil];
 
     // 触发播放（如果需要）
     if (!_paused) {
@@ -244,7 +247,7 @@ static NSString *const playbackRate = @"rate";
     case VLCMediaPlayerStateBuffering:
       if (!_videoInfo) {
         // 获取音频轨道
-        NSArray *audioTracks = [_player audioTrackNames];
+        NSArray *audioTracks = [_player audioTracks];
         if (audioTracks && audioTracks.count > 0) {
           _videoInfo = [self getVideoInfo];
 
@@ -311,7 +314,7 @@ static NSString *const playbackRate = @"rate";
 - (NSDictionary *)getVideoInfo {
   NSMutableDictionary *info = [NSMutableDictionary new];
   info[@"duration"] = _player.media.length.value;
-  
+
   if (_player.videoSize.width > 0) {
     info[@"videoSize"] = @{
       @"width" : @(_player.videoSize.width),
@@ -320,20 +323,20 @@ static NSString *const playbackRate = @"rate";
   }
 
   // 获取音频轨道
-  NSArray *audioTrackNames = [_player audioTrackNames];
+  NSArray *audioTracks = [_player audioTracks];
   NSArray *audioTrackIndexes = [_player audioTrackIndexes];
-  if (audioTrackNames.count > 0 && audioTrackIndexes.count > 0) {
+  if (audioTracks.count > 0 && audioTrackIndexes.count > 0) {
     NSMutableArray *tracks = [NSMutableArray new];
     int currentAudioTrack = [_player currentAudioTrackIndex];
-    
-    for (NSUInteger i = 0; i < audioTrackNames.count && i < audioTrackIndexes.count; i++) {
+
+    for (NSUInteger i = 0;
+         i < audioTracks.count && i < audioTracks.count; i++) {
       [tracks addObject:@{
         @"id" : audioTrackIndexes[i],
-        @"name" : audioTrackNames[i],
         @"isDefault" : @([audioTrackIndexes[i] intValue] == currentAudioTrack)
       }];
     }
-    
+
     info[@"audioTracks"] = tracks;
   }
 
@@ -343,15 +346,16 @@ static NSString *const playbackRate = @"rate";
   if (subtitleNames.count > 0 && subtitleIndexes.count > 0) {
     NSMutableArray *tracks = [NSMutableArray new];
     int currentSubtitleTrack = [_player currentVideoSubTitleIndex];
-    
-    for (NSUInteger i = 0; i < subtitleNames.count && i < subtitleIndexes.count; i++) {
+
+    for (NSUInteger i = 0; i < subtitleNames.count && i < subtitleIndexes.count;
+         i++) {
       [tracks addObject:@{
         @"id" : subtitleIndexes[i],
         @"name" : subtitleNames[i],
         @"isDefault" : @([subtitleIndexes[i] intValue] == currentSubtitleTrack)
       }];
     }
-    
+
     info[@"textTracks"] = tracks;
   }
 
@@ -457,49 +461,51 @@ static NSString *const playbackRate = @"rate";
   }
 
   // 使用 UIView 动画为布局变化添加平滑效果（参考 VLC for iOS）
-  [UIView animateWithDuration:0.3
-                        delay:0.0
-                      options:UIViewAnimationOptionCurveEaseInOut |
-                              UIViewAnimationOptionBeginFromCurrentState
-                   animations:^{
-                     if ([resizeMode isEqualToString:@"cover"]) {
-                       CGRect viewBounds = self.bounds;
-                       float videoWidth = self->_player.videoSize.width;
-                       float videoHeight = self->_player.videoSize.height;
+  [UIView
+      animateWithDuration:0.3
+                    delay:0.0
+                  options:UIViewAnimationOptionCurveEaseInOut |
+                          UIViewAnimationOptionBeginFromCurrentState
+               animations:^{
+                 if ([resizeMode isEqualToString:@"cover"]) {
+                   CGRect viewBounds = self.bounds;
+                   float videoWidth = self->_player.videoSize.width;
+                   float videoHeight = self->_player.videoSize.height;
 
-                       if (viewBounds.size.width > 0 &&
-                           viewBounds.size.height > 0 && videoWidth > 0 &&
-                           videoHeight > 0) {
-                         float viewWidth = viewBounds.size.width;
-                         float viewHeight = viewBounds.size.height;
-                         float viewAspect = viewWidth / viewHeight;
-                         float videoAspect = videoWidth / videoHeight;
-                         float scale = 1.0;
+                   if (viewBounds.size.width > 0 &&
+                       viewBounds.size.height > 0 && videoWidth > 0 &&
+                       videoHeight > 0) {
+                     float viewWidth = viewBounds.size.width;
+                     float viewHeight = viewBounds.size.height;
+                     float viewAspect = viewWidth / viewHeight;
+                     float videoAspect = videoWidth / videoHeight;
+                     float scale = 1.0;
 
-                         if (viewAspect > videoAspect) {
-                           scale = viewWidth / videoWidth;
-                         } else {
-                           scale = viewHeight / videoHeight;
-                         }
-
-                         int cropWidth = viewWidth * scale;
-                         int cropHeight = viewHeight * scale;
-
-                         // 使用新的API设置裁剪比例
-                         [self->_player setCropRatioWithNumerator:cropWidth denominator:cropHeight];
-                         [self->_player setVideoAspectRatio:NULL];
-                       } else {
-                         [self->_player setCropRatioWithNumerator:1 denominator:0];
-                         [self->_player setVideoAspectRatio:NULL];
-                       }
+                     if (viewAspect > videoAspect) {
+                       scale = viewWidth / videoWidth;
                      } else {
-                       [self->_player setCropRatioWithNumerator:1 denominator:0];
-                       [self->_player setVideoAspectRatio:NULL];
+                       scale = viewHeight / videoHeight;
                      }
-                     [self setNeedsLayout];
-                     [self layoutIfNeeded];
+
+                     int cropWidth = viewWidth * scale;
+                     int cropHeight = viewHeight * scale;
+
+                     // 使用新的API设置裁剪比例
+                     [self->_player setCropRatioWithNumerator:cropWidth
+                                                  denominator:cropHeight];
+                     [self->_player setVideoAspectRatio:NULL];
+                   } else {
+                     [self->_player setCropRatioWithNumerator:1 denominator:0];
+                     [self->_player setVideoAspectRatio:NULL];
                    }
-                   completion:nil];
+                 } else {
+                   [self->_player setCropRatioWithNumerator:1 denominator:0];
+                   [self->_player setVideoAspectRatio:NULL];
+                 }
+                 [self setNeedsLayout];
+                 [self layoutIfNeeded];
+               }
+               completion:nil];
 }
 
 // 重写layoutSubviews方法来处理旋转后的布局
