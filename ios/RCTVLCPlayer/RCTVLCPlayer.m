@@ -163,9 +163,9 @@ static NSString *const playbackRate = @"rate";
 
     // 设置循环播放
     if (_repeat) {
-      [media addOption:@"input-repeat=1000"];
+      [_player.media addOption:@"input-repeat=1000"];
     } else {
-      [media addOption:@"input-repeat=0"];
+      [_player.media addOption:@"input-repeat=0"];
     }
 
     // 设置音频会话
@@ -230,11 +230,9 @@ static NSString *const playbackRate = @"rate";
   [self updateVideoProgress];
 }
 
-- (void)mediaPlayerStateChanged:(NSNotification *)aNotification {
-  NSLog(@"[VLCPlayer][State] 状态变化开始 self=%p player=%p", self, _player);
+- (void)mediaPlayerStateChanged:(VLCMediaPlayerState)currentState {
 
   if (!self || !_player) {
-    NSLog(@"[VLCPlayer][Error] 无效的对象: self=%p player=%p", self, _player);
     return;
   }
 
@@ -242,19 +240,13 @@ static NSString *const playbackRate = @"rate";
   dispatch_async(dispatch_get_main_queue(), ^{
     __strong typeof(weakSelf) strongSelf = weakSelf;
     if (!strongSelf || !strongSelf->_player) {
-      NSLog(@"[VLCPlayer][Error] 状态回调中对象已释放: self=%p player=%p",
-            strongSelf, strongSelf ? strongSelf->_player : nil);
       return;
     }
 
     @try {
-      VLCMediaPlayerState state = strongSelf->_player.state;
-      NSLog(@"[VLCPlayer][State] 播放器状态=%d media=%p", (int)state,
-            strongSelf->_player.media);
-
+      VLCMediaPlayerState state = currentState;
       switch (state) {
       case VLCMediaPlayerStateOpening:
-        NSLog(@"[VLCPlayer] 状态: 正在打开媒体");
         if (strongSelf.onVideoOpen) {
           strongSelf.onVideoOpen(@{@"target" : @(1)});
         }
@@ -264,7 +256,6 @@ static NSString *const playbackRate = @"rate";
         break;
 
       case VLCMediaPlayerStatePaused:
-        NSLog(@"[VLCPlayer] 状态: 已暂停");
         strongSelf->_paused = YES;
         if (strongSelf.onVideoPaused) {
           strongSelf.onVideoPaused(@{@"target" : @(1)});
@@ -272,14 +263,12 @@ static NSString *const playbackRate = @"rate";
         break;
 
       case VLCMediaPlayerStateStopped:
-        NSLog(@"[VLCPlayer] 状态: 已停止");
         if (strongSelf.onVideoStopped) {
           strongSelf.onVideoStopped(@{@"target" : @(1)});
         }
         break;
 
       case VLCMediaPlayerStateBuffering:
-        NSLog(@"[VLCPlayer] 状态: 正在缓冲");
         if (!strongSelf->_videoInfo) {
           // 获取音频轨道
           NSArray *audioTracks = [strongSelf->_player audioTracks];
@@ -389,10 +378,12 @@ static NSString *const playbackRate = @"rate";
     NSMutableArray *tracks = [NSMutableArray new];
     for (NSUInteger i = 0; i < audioTracks.count; i++) {
       VLCMediaPlayerTrack *track = audioTracks[i];
-      NSNumber *trackId = @([audioTracks indexOfObject:track]);
-      if (trackId) {
-        [tracks
-            addObject:@{@"id" : trackId, @"isDefault" : @(track.isSelected)}];
+      if (track) {
+        [tracks addObject:@{
+          @"id" : @(i),
+          @"name" : track.trackName,
+          @"isDefault" : @(track.isSelectedExclusively)
+        }];
       }
     }
     if (tracks.count > 0) {
@@ -402,14 +393,17 @@ static NSString *const playbackRate = @"rate";
 
   // 获取字幕轨道
   NSArray *subtitleTracks = [_player textTracks];
+
   if (subtitleTracks && subtitleTracks.count > 0) {
     NSMutableArray *tracks = [NSMutableArray new];
     for (NSUInteger i = 0; i < subtitleTracks.count; i++) {
       VLCMediaPlayerTrack *track = subtitleTracks[i];
-      NSNumber *trackId = @([subtitleTracks indexOfObject:track]);
-      if (trackId) {
-        [tracks
-            addObject:@{@"id" : trackId, @"isDefault" : @(track.isSelected)}];
+      if (track) {
+        [tracks addObject:@{
+          @"id" : @(i),
+          @"name" : track.trackName,
+          @"isDefault" : @(track.isSelectedExclusively)
+        }];
       }
     }
     if (tracks.count > 0) {
@@ -482,7 +476,6 @@ static NSString *const playbackRate = @"rate";
   if (_player) {
     NSArray *audioTracks = [_player audioTracks];
     NSUInteger count = audioTracks.count;
-
     if (trackIndex >= 0 && trackIndex < count) {
       VLCMediaPlayerTrack *track = audioTracks[trackIndex];
       track.selectedExclusively = YES;
@@ -492,6 +485,7 @@ static NSString *const playbackRate = @"rate";
 
 - (void)setTextTrack:(int)track {
   NSUInteger trackIndex = track; // 假设 track 是传入的索引值
+
   if (_player) {
     NSArray *textTracks = [_player textTracks];
     NSUInteger count = textTracks.count;
@@ -499,8 +493,6 @@ static NSString *const playbackRate = @"rate";
     if (trackIndex >= 0 && trackIndex < count) {
       VLCMediaPlayerTrack *track = textTracks[trackIndex];
       track.selectedExclusively = YES;
-    } else if (track < 0) {
-      [_player deselectAllTextTracks];
     } else {
       NSLog(@"Invalid text track index: %d", track);
     }
@@ -510,6 +502,8 @@ static NSString *const playbackRate = @"rate";
 - (void)setVideoAspectRatio:(NSString *)ratio {
   if (ratio && ratio.length > 0) {
     [_player setVideoAspectRatio:ratio];
+    [self setNeedsLayout];
+    [self layoutIfNeeded];
   }
 }
 
@@ -540,58 +534,14 @@ static NSString *const playbackRate = @"rate";
     return;
   }
 
-  // 防止递归调用
-  if (_isUpdatingLayout) {
-    return;
+  if ([resizeMode isEqualToString:@"cover"]) {
+    CGRect viewBounds = self.bounds;
+    [_player setCropRatioWithNumerator:viewBounds.size.width
+                           denominator:viewBounds.size.height];
+
+  } else {
+    [self->_player setCropRatioWithNumerator:1 denominator:0];
   }
-
-  _isUpdatingLayout = YES;
-
-  // 使用 UIView 动画为布局变化添加平滑效果（参考 VLC for iOS）
-  [UIView animateWithDuration:0.3
-      delay:0.0
-      options:UIViewAnimationOptionCurveEaseInOut |
-              UIViewAnimationOptionBeginFromCurrentState
-      animations:^{
-        if ([resizeMode isEqualToString:@"cover"]) {
-          CGRect viewBounds = self.bounds;
-          float videoWidth = self->_player.videoSize.width;
-          float videoHeight = self->_player.videoSize.height;
-
-          if (viewBounds.size.width > 0 && viewBounds.size.height > 0 &&
-              videoWidth > 0 && videoHeight > 0) {
-            float viewWidth = viewBounds.size.width;
-            float viewHeight = viewBounds.size.height;
-            float viewAspect = viewWidth / viewHeight;
-            float videoAspect = videoWidth / videoHeight;
-            float scale = 1.0;
-
-            if (viewAspect > videoAspect) {
-              scale = viewWidth / videoWidth;
-            } else {
-              scale = viewHeight / videoHeight;
-            }
-
-            int cropWidth = viewWidth * scale;
-            int cropHeight = viewHeight * scale;
-
-            // 使用新的API设置裁剪比例
-            [self->_player setCropRatioWithNumerator:cropWidth
-                                         denominator:cropHeight];
-            [self->_player setVideoAspectRatio:NULL];
-          } else {
-            [self->_player setCropRatioWithNumerator:1 denominator:0];
-            [self->_player setVideoAspectRatio:NULL];
-          }
-        } else {
-          [self->_player setCropRatioWithNumerator:1 denominator:0];
-          [self->_player setVideoAspectRatio:NULL];
-        }
-      }
-      completion:^(BOOL finished) {
-        // 避免在动画块中调用layoutIfNeeded，它可能会触发layoutSubviews
-        self->_isUpdatingLayout = NO;
-      }];
 }
 
 // 重写layoutSubviews方法来处理旋转后的布局
@@ -615,21 +565,22 @@ static NSString *const playbackRate = @"rate";
 
 - (void)_release {
   @try {
-
     if (_player) {
-      NSLog(@"[VLCPlayer][Release] 开始释放 player=%p", _player);
-      // NSLog(@"RCTVLCPlayer: removeFromSuperview"); // Removed
-      // 移除所有通知观察者
-      [[NSNotificationCenter defaultCenter] removeObserver:self];
+      // 停止播放
+      [_player pause];
 
-      [_player stop]; // 停止播放
+      // 清除 delegate 和 drawable
       _player.delegate = nil;
       _player.drawable = nil;
-      _player = nil; // 释放播放器
+
+      // 短暂延迟，确保 VLCKit 内部线程完成任务
+      [NSThread sleepForTimeInterval:0.1];
+
+      // 释放播放器
+      _player = nil;
     }
     _videoInfo = nil;
     _paused = YES;
-    NSLog(@"[VLCPlayer][Release] 释放完成");
   } @catch (NSException *exception) {
     NSLog(@"[VLCPlayer][Error] 释放异常: %@\nreason: %@\ncallStack: %@",
           exception.name, exception.reason, exception.callStackSymbols);
@@ -638,11 +589,20 @@ static NSString *const playbackRate = @"rate";
 
 #pragma mark - Lifecycle
 - (void)removeFromSuperview {
-  // NSLog(@"RCTVLCPlayer: removeFromSuperview"); // Removed
-  // 移除所有通知观察者
+  // 先移除所有通知观察者，防止后续回调
   [[NSNotificationCenter defaultCenter] removeObserver:self];
-  [self _release];
+
+  // 确保在主线程释放资源
+  dispatch_async(dispatch_get_main_queue(), ^{
+    // 使用锁保护资源释放
+    @synchronized(self) {
+      [self _release];
+    }
+    NSLog(@"[VLCPlayer] removeFromSuperview 资源释放完成");
+  });
+
   [super removeFromSuperview];
+  NSLog(@"[VLCPlayer] removeFromSuperview 完成");
 }
 
 // 处理方向变化的函数
@@ -662,9 +622,6 @@ static NSString *const playbackRate = @"rate";
     // 先确保父视图布局更新完成
     [self.superview setNeedsLayout];
     [self.superview layoutIfNeeded];
-
-    // 记录旋转前的frame作为动画起点
-    CGRect originalFrame = self.frame;
 
     // 计算旋转角度
     CGFloat rotationAngle = 0.0;
