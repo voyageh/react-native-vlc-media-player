@@ -43,6 +43,7 @@ static NSString *const playbackRate = @"rate";
 
 - (instancetype)initWithEventDispatcher:(RCTEventDispatcher *)eventDispatcher {
   if ((self = [super init])) {
+    NSLog(@"[VLCPlayer][Init] 初始化播放器视图");
     _eventDispatcher = eventDispatcher;
 
     [[NSNotificationCenter defaultCenter]
@@ -94,8 +95,10 @@ static NSString *const playbackRate = @"rate";
 }
 
 - (void)setSource:(NSDictionary *)source {
-  // 先停止当前播放
+  NSLog(@"[VLCPlayer][Source] 开始设置媒体源: %@", source);
+
   if (_player) {
+    NSLog(@"[VLCPlayer][Source] 当前播放器状态: %d", (int)_player.state);
     [self _release];
   }
 
@@ -128,6 +131,7 @@ static NSString *const playbackRate = @"rate";
 
   // 创建新的播放器实例
   @try {
+    NSLog(@"[VLCPlayer][Source] 创建播放器实例 type=%d", initType);
     if (initType == 1) {
       _player = [[VLCMediaPlayer alloc] init];
     } else {
@@ -147,9 +151,11 @@ static NSString *const playbackRate = @"rate";
     }
 
     if (!_player) {
+      NSLog(@"[VLCPlayer][Error] 播放器创建失败");
       return;
     }
 
+    NSLog(@"[VLCPlayer][Source] 播放器创建成功，设置代理");
     _player.delegate = self;
     _player.drawable = self;
 
@@ -180,6 +186,8 @@ static NSString *const playbackRate = @"rate";
       [_player play];
     }
   } @catch (NSException *exception) {
+    NSLog(@"[VLCPlayer][Error] 初始化异常: %@\nreason: %@\ncallStack: %@",
+          exception.name, exception.reason, exception.callStackSymbols);
     [self _release];
     return;
   }
@@ -230,8 +238,10 @@ static NSString *const playbackRate = @"rate";
 }
 
 - (void)mediaPlayerStateChanged:(NSNotification *)aNotification {
-  // 防止在对象被释放后调用此方法
+  NSLog(@"[VLCPlayer][State] 状态变化开始 self=%p player=%p", self, _player);
+
   if (!self || !_player) {
+    NSLog(@"[VLCPlayer][Error] 无效的对象: self=%p player=%p", self, _player);
     return;
   }
 
@@ -239,11 +249,16 @@ static NSString *const playbackRate = @"rate";
   dispatch_async(dispatch_get_main_queue(), ^{
     __strong typeof(weakSelf) strongSelf = weakSelf;
     if (!strongSelf || !strongSelf->_player) {
+      NSLog(@"[VLCPlayer][Error] 状态回调中对象已释放: self=%p player=%p",
+            strongSelf, strongSelf ? strongSelf->_player : nil);
       return;
     }
 
     @try {
       VLCMediaPlayerState state = strongSelf->_player.state;
+      NSLog(@"[VLCPlayer][State] 播放器状态=%d media=%p", (int)state,
+            strongSelf->_player.media);
+
       switch (state) {
       case VLCMediaPlayerStateOpening:
         NSLog(@"[VLCPlayer] 状态: 正在打开媒体");
@@ -309,7 +324,7 @@ static NSString *const playbackRate = @"rate";
       case VLCMediaPlayerStateStopping:
         NSLog(@"[VLCPlayer] 状态: 正在停止");
         break;
-        
+
       case VLCMediaPlayerStateError:
         NSLog(@"[VLCPlayer] 状态: 播放错误");
         if (strongSelf.onVideoError) {
@@ -322,7 +337,8 @@ static NSString *const playbackRate = @"rate";
         break;
       }
     } @catch (NSException *exception) {
-      NSLog(@"VLC播放器状态变化处理异常: %@", exception);
+      NSLog(@"[VLCPlayer][Error] 状态处理异常: %@\nreason: %@\ncallStack: %@",
+            exception.name, exception.reason, exception.callStackSymbols);
       if (strongSelf->_player) {
         [strongSelf _release];
       }
@@ -604,7 +620,9 @@ static NSString *const playbackRate = @"rate";
 
 - (void)_release {
   @try {
+
     if (_player) {
+      NSLog(@"[VLCPlayer][Release] 开始释放 player=%p", _player);
       // NSLog(@"RCTVLCPlayer: removeFromSuperview"); // Removed
       // 移除所有通知观察者
       [[NSNotificationCenter defaultCenter] removeObserver:self];
@@ -616,8 +634,10 @@ static NSString *const playbackRate = @"rate";
     }
     _videoInfo = nil;
     _paused = YES;
+    NSLog(@"[VLCPlayer][Release] 释放完成");
   } @catch (NSException *exception) {
-    NSLog(@"VLC播放器释放异常: %@", exception);
+    NSLog(@"[VLCPlayer][Error] 释放异常: %@\nreason: %@\ncallStack: %@",
+          exception.name, exception.reason, exception.callStackSymbols);
   }
 }
 
