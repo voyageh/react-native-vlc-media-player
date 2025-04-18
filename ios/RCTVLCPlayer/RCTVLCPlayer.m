@@ -231,7 +231,7 @@ static NSString *const playbackRate = @"rate";
 
 - (void)mediaPlayerStateChanged:(NSNotification *)aNotification {
   // 防止在对象被释放后调用此方法
-  if (!self || !_player) {
+  if (!self || !_player || !self.delegate) {
     return;
   }
 
@@ -595,7 +595,11 @@ static NSString *const playbackRate = @"rate";
 - (void)_release {
   @try {
     if (_player) {
-      [_player pause]; // 停止播放
+      // NSLog(@"RCTVLCPlayer: removeFromSuperview"); // Removed
+      // 移除所有通知观察者
+      [[NSNotificationCenter defaultCenter] removeObserver:self];
+
+      [_player stop]; // 停止播放
       _player.delegate = nil;
       _player.drawable = nil;
       _player = nil; // 释放播放器
@@ -605,11 +609,6 @@ static NSString *const playbackRate = @"rate";
   } @catch (NSException *exception) {
     NSLog(@"VLC播放器释放异常: %@", exception);
   }
-}
-
-- (void)dealloc {
-  [[NSNotificationCenter defaultCenter] removeObserver:self];
-  [self _release];
 }
 
 #pragma mark - Lifecycle
