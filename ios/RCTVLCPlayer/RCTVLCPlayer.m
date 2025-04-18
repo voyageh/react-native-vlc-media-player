@@ -231,7 +231,7 @@ static NSString *const playbackRate = @"rate";
 
 - (void)mediaPlayerStateChanged:(NSNotification *)aNotification {
   // 防止在对象被释放后调用此方法
-  if (!self || !_player || !self.delegate) {
+  if (!self || !_player) {
     return;
   }
 
