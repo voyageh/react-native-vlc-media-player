@@ -230,84 +230,91 @@ static NSString *const playbackRate = @"rate";
 }
 
 - (void)mediaPlayerStateChanged:(NSNotification *)aNotification {
-  // 防止在对象被释放后调用此方法，提前检查self是否有效
-  if (!self || !aNotification) {
+  // 防止在对象被释放后调用此方法
+  if (!self || !_player) {
     return;
   }
 
-  // 检查播放器是否有效
-  if (!_player) {
-    return;
-  }
-
+  __weak typeof(self) weakSelf = self;
   dispatch_async(dispatch_get_main_queue(), ^{
+    __strong typeof(weakSelf) strongSelf = weakSelf;
+    if (!strongSelf || !strongSelf->_player) {
+      return;
+    }
+
     @try {
-      VLCMediaPlayerState state = _player.state;
+      VLCMediaPlayerState state = strongSelf->_player.state;
       switch (state) {
       case VLCMediaPlayerStateOpening:
-        if (self.onVideoOpen) {
-          self.onVideoOpen(@{@"target" : self.reactTag});
+        if (strongSelf.onVideoOpen) {
+          strongSelf.onVideoOpen(@{@"target" : strongSelf.reactTag});
         }
-        if (self.onVideoLoadStart) {
-          self.onVideoLoadStart(@{@"target" : self.reactTag});
-        }
-        break;
-      case VLCMediaPlayerStatePaused:
-        _paused = YES;
-        if (self.onVideoPaused) {
-          self.onVideoPaused(@{@"target" : self.reactTag});
+        if (strongSelf.onVideoLoadStart) {
+          strongSelf.onVideoLoadStart(@{@"target" : strongSelf.reactTag});
         }
         break;
-      case VLCMediaPlayerStateStopped:
-        if (self.onVideoStopped) {
-          self.onVideoStopped(@{@"target" : self.reactTag});
-        }
-        break;
-      case VLCMediaPlayerStateBuffering:
-        if (!_videoInfo) {
-          // 获取音频轨道
-          NSArray *audioTracks = [_player audioTracks];
-          if (audioTracks && audioTracks.count > 0) {
-            _videoInfo = [self getVideoInfo];
 
-            // 直接调用setStartTime方法，传入当前的_startTime值
-            if (_startTime > 0) {
-              [self setStartTime:_startTime];
-            }
-            if (self.onVideoLoad && _videoInfo) {
-              self.onVideoLoad(_videoInfo);
-            }
-          }
-          if (self.onVideoBuffering) {
-            self.onVideoBuffering(@{@"target" : self.reactTag});
-          }
+      case VLCMediaPlayerStatePaused:
+        strongSelf->_paused = YES;
+        if (strongSelf.onVideoPaused) {
+          strongSelf.onVideoPaused(@{@"target" : strongSelf.reactTag});
         }
         break;
+
+      case VLCMediaPlayerStateStopped:
+        if (strongSelf.onVideoStopped) {
+          strongSelf.onVideoStopped(@{@"target" : strongSelf.reactTag});
+        }
+        break;
+
+      case VLCMediaPlayerStateBuffering:
+        if (!strongSelf->_videoInfo) {
+          // 获取音频轨道
+          NSArray *audioTracks = [strongSelf->_player audioTracks];
+          if (audioTracks && audioTracks.count > 0) {
+            strongSelf->_videoInfo = [strongSelf getVideoInfo];
+
+            // 设置起始时间
+            if (strongSelf->_startTime > 0) {
+              [strongSelf setStartTime:strongSelf->_startTime];
+            }
+
+            if (strongSelf.onVideoLoad && strongSelf->_videoInfo) {
+              strongSelf.onVideoLoad(strongSelf->_videoInfo);
+            }
+          }
+        }
+
+        if (strongSelf.onVideoBuffering) {
+          strongSelf.onVideoBuffering(@{@"target" : strongSelf.reactTag});
+        }
+        break;
+
       case VLCMediaPlayerStatePlaying:
-        _paused = NO;
-        if (self.onVideoPlaying && _player && _player.media) {
-          self.onVideoPlaying(@{
-            @"target" : self.reactTag,
-            @"seekable" : [NSNumber numberWithBool:[_player isSeekable]],
-            @"duration" :
-                [NSNumber numberWithInt:[_player.media.length intValue]]
+        strongSelf->_paused = NO;
+        if (strongSelf.onVideoPlaying && strongSelf->_player.media) {
+          strongSelf.onVideoPlaying(@{
+            @"target" : strongSelf.reactTag,
+            @"seekable" : @(strongSelf->_player.isSeekable),
+            @"duration" : @(strongSelf->_player.media.length.intValue)
           });
         }
         break;
+
       case VLCMediaPlayerStateError:
-        if (self.onVideoError) {
-          self.onVideoError(@{@"target" : self.reactTag});
+        if (strongSelf.onVideoError) {
+          strongSelf.onVideoError(@{@"target" : strongSelf.reactTag});
         }
-        [self _release];
+        [strongSelf _release];
         break;
+
       default:
         break;
       }
     } @catch (NSException *exception) {
       NSLog(@"VLC播放器状态变化处理异常: %@", exception);
-      // 如果发生异常，尝试释放播放器
-      if (_player) {
-        [self _release];
+      if (strongSelf->_player) {
+        [strongSelf _release];
       }
     }
   });
@@ -361,7 +368,6 @@ static NSString *const playbackRate = @"rate";
   NSArray *audioTracks = [_player audioTracks];
   if (audioTracks && audioTracks.count > 0) {
     NSMutableArray *tracks = [NSMutableArray new];
-
     for (NSUInteger i = 0; i < audioTracks.count; i++) {
       VLCMediaPlayerTrack *track = audioTracks[i];
       NSNumber *trackId = @([audioTracks indexOfObject:track]);
@@ -370,7 +376,6 @@ static NSString *const playbackRate = @"rate";
             addObject:@{@"id" : trackId, @"isDefault" : @(track.isSelected)}];
       }
     }
-
     if (tracks.count > 0) {
       info[@"audioTracks"] = tracks;
     }
@@ -380,7 +385,6 @@ static NSString *const playbackRate = @"rate";
   NSArray *subtitleTracks = [_player textTracks];
   if (subtitleTracks && subtitleTracks.count > 0) {
     NSMutableArray *tracks = [NSMutableArray new];
-
     for (NSUInteger i = 0; i < subtitleTracks.count; i++) {
       VLCMediaPlayerTrack *track = subtitleTracks[i];
       NSNumber *trackId = @([subtitleTracks indexOfObject:track]);
@@ -389,7 +393,6 @@ static NSString *const playbackRate = @"rate";
             addObject:@{@"id" : trackId, @"isDefault" : @(track.isSelected)}];
       }
     }
-
     if (tracks.count > 0) {
       info[@"textTracks"] = tracks;
     }
@@ -478,7 +481,7 @@ static NSString *const playbackRate = @"rate";
     } else if (track < 0) {
       [_player deselectAllTextTracks];
     } else {
-      NSLog(@"Invalid text track index: %d", trackIndex);
+      NSLog(@"Invalid text track index: %d", track);
     }
   }
 }
