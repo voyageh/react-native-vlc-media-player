@@ -246,6 +246,7 @@ static NSString *const playbackRate = @"rate";
       VLCMediaPlayerState state = strongSelf->_player.state;
       switch (state) {
       case VLCMediaPlayerStateOpening:
+        NSLog(@"[VLCPlayer] 状态: 正在打开媒体");
         if (strongSelf.onVideoOpen) {
           strongSelf.onVideoOpen(@{@"target" : @(1)});
         }
@@ -255,6 +256,7 @@ static NSString *const playbackRate = @"rate";
         break;
 
       case VLCMediaPlayerStatePaused:
+        NSLog(@"[VLCPlayer] 状态: 已暂停");
         strongSelf->_paused = YES;
         if (strongSelf.onVideoPaused) {
           strongSelf.onVideoPaused(@{@"target" : @(1)});
@@ -262,12 +264,14 @@ static NSString *const playbackRate = @"rate";
         break;
 
       case VLCMediaPlayerStateStopped:
+        NSLog(@"[VLCPlayer] 状态: 已停止");
         if (strongSelf.onVideoStopped) {
           strongSelf.onVideoStopped(@{@"target" : @(1)});
         }
         break;
 
       case VLCMediaPlayerStateBuffering:
+        NSLog(@"[VLCPlayer] 状态: 正在缓冲");
         if (!strongSelf->_videoInfo) {
           // 获取音频轨道
           NSArray *audioTracks = [strongSelf->_player audioTracks];
@@ -291,6 +295,7 @@ static NSString *const playbackRate = @"rate";
         break;
 
       case VLCMediaPlayerStatePlaying:
+        NSLog(@"[VLCPlayer] 状态: 正在播放");
         strongSelf->_paused = NO;
         if (strongSelf.onVideoPlaying && strongSelf->_player.media) {
           strongSelf.onVideoPlaying(@{
@@ -301,7 +306,12 @@ static NSString *const playbackRate = @"rate";
         }
         break;
 
+      case VLCMediaPlayerStateStopping:
+        NSLog(@"[VLCPlayer] 状态: 正在停止");
+        break;
+        
       case VLCMediaPlayerStateError:
+        NSLog(@"[VLCPlayer] 状态: 播放错误");
         if (strongSelf.onVideoError) {
           strongSelf.onVideoError(@{@"target" : @(1)});
         }
