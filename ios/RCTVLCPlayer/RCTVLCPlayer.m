@@ -247,23 +247,23 @@ static NSString *const playbackRate = @"rate";
       switch (state) {
       case VLCMediaPlayerStateOpening:
         if (strongSelf.onVideoOpen) {
-          strongSelf.onVideoOpen(@{@"target" : strongSelf.reactTag});
+          strongSelf.onVideoOpen(@{@"target" : @(1)});
         }
         if (strongSelf.onVideoLoadStart) {
-          strongSelf.onVideoLoadStart(@{@"target" : strongSelf.reactTag});
+          strongSelf.onVideoLoadStart(@{@"target" : @(1)});
         }
         break;
 
       case VLCMediaPlayerStatePaused:
         strongSelf->_paused = YES;
         if (strongSelf.onVideoPaused) {
-          strongSelf.onVideoPaused(@{@"target" : strongSelf.reactTag});
+          strongSelf.onVideoPaused(@{@"target" : @(1)});
         }
         break;
 
       case VLCMediaPlayerStateStopped:
         if (strongSelf.onVideoStopped) {
-          strongSelf.onVideoStopped(@{@"target" : strongSelf.reactTag});
+          strongSelf.onVideoStopped(@{@"target" : @(1)});
         }
         break;
 
@@ -286,7 +286,7 @@ static NSString *const playbackRate = @"rate";
         }
 
         if (strongSelf.onVideoBuffering) {
-          strongSelf.onVideoBuffering(@{@"target" : strongSelf.reactTag});
+          strongSelf.onVideoBuffering(@{@"target" : @(1)});
         }
         break;
 
@@ -294,7 +294,7 @@ static NSString *const playbackRate = @"rate";
         strongSelf->_paused = NO;
         if (strongSelf.onVideoPlaying && strongSelf->_player.media) {
           strongSelf.onVideoPlaying(@{
-            @"target" : strongSelf.reactTag,
+            @"target" : @(1),
             @"seekable" : @(strongSelf->_player.isSeekable),
             @"duration" : @(strongSelf->_player.media.length.intValue)
           });
@@ -303,7 +303,7 @@ static NSString *const playbackRate = @"rate";
 
       case VLCMediaPlayerStateError:
         if (strongSelf.onVideoError) {
-          strongSelf.onVideoError(@{@"target" : strongSelf.reactTag});
+          strongSelf.onVideoError(@{@"target" : @(1)});
         }
         [strongSelf _release];
         break;
