@@ -159,14 +159,7 @@ static NSString *const playbackRate = @"rate";
     _player.delegate = self;
     _player.drawable = self;
 
-    // 设置媒体源
-    VLCMedia *media = [[VLCMedia alloc] initWithURL:uri];
-    if (!media) {
-      [self _release];
-      return;
-    }
-
-    _player.media = media;
+    _player.media = [VLCMedia mediaWithURL:uri];
 
     // 设置循环播放
     if (_repeat) {
@@ -492,6 +485,7 @@ static NSString *const playbackRate = @"rate";
 
     if (trackIndex >= 0 && trackIndex < count) {
       VLCMediaPlayerTrack *track = audioTracks[trackIndex];
+      track.selectedExclusively = YES;
     }
   }
 }
@@ -504,6 +498,7 @@ static NSString *const playbackRate = @"rate";
 
     if (trackIndex >= 0 && trackIndex < count) {
       VLCMediaPlayerTrack *track = textTracks[trackIndex];
+      track.selectedExclusively = YES;
     } else if (track < 0) {
       [_player deselectAllTextTracks];
     } else {
