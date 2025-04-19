@@ -1,4 +1,5 @@
 #import "RCTVLCPlayer.h"
+#import "RCTVLCPlayerViewController.h"
 #import "React/RCTBridgeModule.h"
 #import "React/RCTConvert.h"
 #import "React/RCTEventDispatcher.h"
@@ -39,12 +40,22 @@ static NSString *const playbackRate = @"rate";
   NSString *_resizeMode;
   UIView *_originalParentView;
   CGRect _originalFrame;
+
+  // 视频控制器
+  RCTVLCPlayerViewController *_playerViewController;
 }
 
 - (instancetype)initWithEventDispatcher:(RCTEventDispatcher *)eventDispatcher {
   if ((self = [super init])) {
     NSLog(@"[VLCPlayer][Init] 初始化播放器视图");
     _eventDispatcher = eventDispatcher;
+
+    // 初始化视频控制器
+    _playerViewController = [[RCTVLCPlayerViewController alloc] init];
+    _playerViewController.view.frame = self.bounds;
+    _playerViewController.view.autoresizingMask =
+        UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    [self addSubview:_playerViewController.view];
 
     [[NSNotificationCenter defaultCenter]
         addObserver:self
@@ -157,7 +168,12 @@ static NSString *const playbackRate = @"rate";
 
     NSLog(@"[VLCPlayer][Source] 播放器创建成功，设置代理");
     _player.delegate = self;
-    _player.drawable = self;
+
+    // 更新播放器控制器中的播放器引用
+    _playerViewController.player = _player;
+
+    // 设置视频输出视图
+    _player.drawable = _playerViewController.videoView;
 
     _player.media = [VLCMedia mediaWithURL:uri];
 
@@ -502,8 +518,6 @@ static NSString *const playbackRate = @"rate";
 - (void)setVideoAspectRatio:(NSString *)ratio {
   if (ratio && ratio.length > 0) {
     [_player setVideoAspectRatio:ratio];
-    [self setNeedsLayout];
-    [self layoutIfNeeded];
   }
 }
 
@@ -528,39 +542,15 @@ static NSString *const playbackRate = @"rate";
 }
 
 - (void)setResizeMode:(NSString *)resizeMode {
-  _resizeMode = resizeMode; // 保存当前的模式
-
-  if (!_player) {
-    return;
-  }
-
-  if ([resizeMode isEqualToString:@"cover"]) {
-    CGRect viewBounds = self.bounds;
-    [_player setCropRatioWithNumerator:viewBounds.size.width
-                           denominator:viewBounds.size.height];
-
-  } else {
-    [self->_player setCropRatioWithNumerator:1 denominator:0];
-  }
+  _resizeMode = resizeMode;
+  [_playerViewController setResizeMode:resizeMode];
 }
 
 // 重写layoutSubviews方法来处理旋转后的布局
 - (void)layoutSubviews {
   [super layoutSubviews];
-  // 当视图的 bounds 改变时（例如旋转完成或父视图调整），
-  // 确保视频的 resizeMode 被重新应用以匹配新的尺寸。
-
-  // 只有当不在布局更新过程中，且播放器和resizeMode都有效时，才应用resizeMode
-  if (!_isUpdatingLayout && _player && _resizeMode && self.window != nil) {
-    // 避免快速连续调用
-    dispatch_async(dispatch_get_main_queue(), ^{
-      if (!self->_isUpdatingLayout) {
-        self->_isUpdatingLayout = YES;
-        [self setResizeMode:self->_resizeMode];
-        // 注意：setResizeMode方法内的completion块会重置_isUpdatingLayout标志
-      }
-    });
-  }
+  // 更新播放器控制器视图的大小
+  // _playerViewController.view.frame = self.bounds;
 }
 
 - (void)_release {
@@ -572,6 +562,9 @@ static NSString *const playbackRate = @"rate";
       // 清除 delegate 和 drawable
       _player.delegate = nil;
       _player.drawable = nil;
+
+      // 更新控制器中的播放器引用
+      _playerViewController.player = nil;
 
       // 短暂延迟，确保 VLCKit 内部线程完成任务
       [NSThread sleepForTimeInterval:0.1];
@@ -605,68 +598,9 @@ static NSString *const playbackRate = @"rate";
   NSLog(@"[VLCPlayer] removeFromSuperview 完成");
 }
 
-// 处理方向变化的函数
-- (void)orientationDidChange:(NSNotification *)notification {
-  UIDeviceOrientation deviceOrientation =
-      [[UIDevice currentDevice] orientation];
-
-  if (UIDeviceOrientationIsLandscape(deviceOrientation) ||
-      UIDeviceOrientationIsPortrait(deviceOrientation)) {
-    // 如果正在更新布局，则不处理方向变化
-    if (_isUpdatingLayout) {
-      return;
-    }
-
-    _isUpdatingLayout = YES;
-
-    // 先确保父视图布局更新完成
-    [self.superview setNeedsLayout];
-    [self.superview layoutIfNeeded];
-
-    // 计算旋转角度
-    CGFloat rotationAngle = 0.0;
-    if (deviceOrientation == UIDeviceOrientationLandscapeLeft) {
-      rotationAngle = M_PI_2; // 90度
-    } else if (deviceOrientation == UIDeviceOrientationLandscapeRight) {
-      rotationAngle = -M_PI_2; // -90度
-    } else if (deviceOrientation == UIDeviceOrientationPortraitUpsideDown) {
-      rotationAngle = M_PI; // 180度
-    }
-
-    // 获取屏幕尺寸
-    CGRect screenBounds = [UIScreen mainScreen].bounds;
-    CGFloat maxSize = MAX(screenBounds.size.width, screenBounds.size.height);
-    CGFloat minSize = MIN(screenBounds.size.width, screenBounds.size.height);
-
-    // 计算目标frame
-    CGRect targetFrame;
-    if (UIDeviceOrientationIsLandscape(deviceOrientation)) {
-      targetFrame = CGRectMake(0, 0, maxSize, minSize);
-    } else {
-      targetFrame = CGRectMake(0, 0, minSize, maxSize);
-    }
-
-    // 使用 UIView 动画同时实现旋转过程动画和宽高变化动画
-    [UIView animateWithDuration:0.3
-        delay:0.0
-        options:UIViewAnimationOptionCurveEaseInOut |
-                UIViewAnimationOptionBeginFromCurrentState
-        animations:^{
-          // 旋转过程动画
-          self.transform = CGAffineTransformMakeRotation(rotationAngle);
-          // 宽高变化动画
-          self.frame = targetFrame;
-        }
-        completion:^(BOOL finished) {
-          // 执行一次单独的resizeMode设置，避免在动画块中调用可能触发layoutSubviews的方法
-          dispatch_async(dispatch_get_main_queue(), ^{
-            if (self->_player && self->_resizeMode) {
-              [self setResizeMode:self->_resizeMode];
-            }
-            self->_isUpdatingLayout = NO;
-          });
-        }];
-  }
+// 实现videoOutputView的getter，返回ViewController中的videoView
+- (UIView *)videoOutputView {
+  return _playerViewController.videoView;
 }
 
 @end

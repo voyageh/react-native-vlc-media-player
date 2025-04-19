@@ -1,6 +1,7 @@
 #import "React/RCTView.h"
 
 @class RCTEventDispatcher;
+@class RCTVLCPlayerViewController;
 
 @interface RCTVLCPlayer : UIView
 

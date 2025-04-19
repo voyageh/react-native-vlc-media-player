@@ -42,7 +42,7 @@ export default class VLCPlayer extends Component {
     this.setNativeProps({ seek: pos });
   }
 
-  resizeMode(mode) {
+  resizeMode(resizeMode) {
     this.setNativeProps({ resizeMode: resizeMode });
   }
 
