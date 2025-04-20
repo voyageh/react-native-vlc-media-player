@@ -26,10 +26,18 @@
   ]];
 }
 
+- (void)viewWillTransitionToSize:(CGSize)size
+       withTransitionCoordinator:
+           (id<UIViewControllerTransitionCoordinator>)coordinator {
+  if ([_resizeMode isEqualToString:@"cover"]) {
+    [self fillScreenWithScreenSize:size];
+  }
+  [super viewWillTransitionToSize:size withTransitionCoordinator:coordinator];
+}
+
+
 - (void)viewDidLayoutSubviews {
   [super viewDidLayoutSubviews];
-  // 确保视频输出视图随父视图大小变化
-  _videoView.frame = self.view.bounds;
 }
 
 - (UIScreen *)currentScreen {
@@ -93,14 +101,6 @@
   _player.videoAspectRatio = NULL;
 }
 
-- (void)viewWillTransitionToSize:(CGSize)size
-       withTransitionCoordinator:
-           (id<UIViewControllerTransitionCoordinator>)coordinator {
-  if ([_resizeMode isEqualToString:@"cover"]) {
-    [self fillScreenWithScreenSize:size];
-  }
-  [super viewWillTransitionToSize:size withTransitionCoordinator:coordinator];
-}
 
 - (CGSize)aspectFillWithAspectRatio:(CGSize)aspectRatio
                         minimumSize:(CGSize)minimumSize {

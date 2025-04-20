@@ -9,6 +9,7 @@
 #import <UIKit/UIKit.h>
 #import <UIKit/UIWindowScene.h>
 #import <VLCKit/VLCKit.h>
+#import <React/RCTUtils.h>
 
 static NSString *const statusKeyPath = @"status";
 static NSString *const playbackLikelyToKeepUpKeyPath =
@@ -52,10 +53,19 @@ static NSString *const playbackRate = @"rate";
 
     // 初始化视频控制器
     _playerViewController = [[RCTVLCPlayerViewController alloc] init];
-    _playerViewController.view.frame = self.bounds;
-    _playerViewController.view.autoresizingMask =
-        UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-    [self addSubview:_playerViewController.view];
+      
+      // 获取当前的UIViewController
+      UIViewController *presentedViewController = RCTPresentedViewController();
+      if (presentedViewController) {
+          NSLog(@"[VLCPlayer][Init] 找到 Controller");
+          [presentedViewController addChildViewController:_playerViewController];
+          [_playerViewController didMoveToParentViewController:presentedViewController];
+      }
+
+      [self addSubview:_playerViewController.view];
+      _playerViewController.view.frame = self.bounds;
+      _playerViewController.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+      
 
     [[NSNotificationCenter defaultCenter]
         addObserver:self
@@ -67,13 +77,6 @@ static NSString *const playbackRate = @"rate";
         addObserver:self
            selector:@selector(applicationWillEnterForeground:)
                name:UIApplicationWillEnterForegroundNotification
-             object:nil];
-
-    // 添加方向变化监听
-    [[NSNotificationCenter defaultCenter]
-        addObserver:self
-           selector:@selector(orientationDidChange:)
-               name:UIDeviceOrientationDidChangeNotification
              object:nil];
   }
 
