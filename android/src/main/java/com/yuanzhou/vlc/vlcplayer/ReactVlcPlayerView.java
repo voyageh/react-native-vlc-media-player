@@ -63,8 +63,6 @@ class ReactVlcPlayerView extends TextureView implements
     private boolean isHostPaused = false;
     private int preVolume = 100;
     private boolean autoAspectRatio = false;
-    private boolean repeat = false;
-    private int mStartTime = 0;
 
     private float mProgressUpdateInterval = 0;
     private Handler mProgressUpdateHandler = new Handler();
@@ -229,13 +227,6 @@ class ReactVlcPlayerView extends TextureView implements
             map.putDouble("position", position);
             map.putDouble("currentTime", currentTime);
             map.putDouble("duration", totalLength);
-            
-            // 添加 startTime 设置成功的验证
-            boolean startTimeSetSuccessfully = false;
-            if (mStartTime > 0 && currentTime >= mStartTime) {
-                startTimeSetSuccessfully = true;
-            }
-            map.putBoolean("startTimeSetSuccessfully", startTimeSetSuccessfully);
 
             switch (event.type) {
                 case MediaPlayer.Event.EndReached:
@@ -257,12 +248,6 @@ class ReactVlcPlayerView extends TextureView implements
                 case MediaPlayer.Event.Buffering:
                     if(mVideoInfo == null && mMediaPlayer.getAudioTracksCount() > 0) {
                         mVideoInfo = getVideoInfo();
-                        
-                        // 在触发onLoad事件前应用startTime
-                        if (mStartTime > 0 && mMediaPlayer.isSeekable()) {
-                            mMediaPlayer.setTime(mStartTime);
-                        }
-                        
                         eventEmitter.sendEvent(mVideoInfo, VideoEventEmitter.EVENT_ON_LOAD);
                         final Handler handler = new Handler(Looper.getMainLooper());
                         handler.postDelayed(new Runnable() {
@@ -445,16 +430,6 @@ class ReactVlcPlayerView extends TextureView implements
             }
             mVideoInfo = null;
             mMediaPlayer.setMedia(m);
-            
-            // 根据repeat状态设置循环播放
-            if (repeat) {
-                // 使用标准的VLC API设置循环播放模式
-                mMediaPlayer.setRepeatMode(MediaPlayer.RepeatType.REPEAT_CURRENT);
-            } else {
-                // 设置为不重复模式
-                mMediaPlayer.setRepeatMode(MediaPlayer.RepeatType.NONE);
-            }
-            
             m.release();
             mMediaPlayer.setScale(0);
             if (_subtitleUri != null) {
@@ -633,16 +608,6 @@ class ReactVlcPlayerView extends TextureView implements
 
 
     public void setRepeatModifier(boolean repeat) {
-        this.repeat = repeat;
-        if (mMediaPlayer != null && mMediaPlayer.getMedia() != null) {
-            if (repeat) {
-                // 使用标准的VLC API设置循环播放模式
-                mMediaPlayer.setRepeatMode(MediaPlayer.RepeatType.REPEAT_CURRENT);
-            } else {
-                // 设置为不重复模式
-                mMediaPlayer.setRepeatMode(MediaPlayer.RepeatType.NONE);
-            }
-        }
     }
 
 
@@ -739,7 +704,6 @@ class ReactVlcPlayerView extends TextureView implements
                 WritableMap trackMap = Arguments.createMap();
                 trackMap.putInt("id", track.id);
                 trackMap.putString("name", track.name);
-                trackMap.putBoolean("isDefault", track.id == mMediaPlayer.getAudioTrack());
                 tracks.pushMap(trackMap);
             }
             map.putArray("audioTracks", tracks);
@@ -752,7 +716,6 @@ class ReactVlcPlayerView extends TextureView implements
                 WritableMap trackMap = Arguments.createMap();
                 trackMap.putInt("id", track.id);
                 trackMap.putString("name", track.name);
-                trackMap.putBoolean("isDefault", track.id == mMediaPlayer.getSpuTrack());
                 tracks.pushMap(trackMap);
             }
             map.putArray("textTracks", tracks);
@@ -766,20 +729,6 @@ class ReactVlcPlayerView extends TextureView implements
             map.putMap("videoSize", mapVideoSize);
         }
         return map;
-    }
-
-    /**
-     * 设置视频开始时间点
-     *
-     * @param startTime 毫秒
-     */
-    public void setStartTime(int startTime) {
-        mStartTime = startTime;
-        if (mMediaPlayer != null && mMediaPlayer.isSeekable()) {
-            if (startTime > 0) {
-                mMediaPlayer.setTime(startTime);
-            }
-        }
     }
 
     /*private void changeSurfaceSize(boolean message) {
