@@ -51,25 +51,24 @@ static NSString *const playbackRate = @"rate";
     NSLog(@"[VLCPlayer][Init] 初始化播放器视图");
     _eventDispatcher = eventDispatcher;
 
-  // 初始化视频控制器
-  _playerViewController = [[RCTVLCPlayerViewController alloc] init];
+    // 初始化视频控制器
+    _playerViewController = [[RCTVLCPlayerViewController alloc] init];
+      
+    // 获取最近的 React Native 父 ViewController
+    UIResponder *responder = self;
+    while (responder && ![responder isKindOfClass:[UIViewController class]]) {
+      responder = [responder nextResponder];
+    }
+    UIViewController *parentVC = (UIViewController *)responder;
+    if (parentVC) {
+      NSLog(@"[VLCPlayer][Init] 找到 parentVC: %@", parentVC);
+      [parentVC addChildViewController:_playerViewController];
+      [_playerViewController didMoveToParentViewController:parentVC];
+    }
 
-  // 优先查找 reactViewController 作为 parent（兼容 RNSScreen）
-  UIViewController *parentVC = self.reactViewController;
-  if (!parentVC) {
-    parentVC = RCTPresentedViewController();
-  }
-  if (parentVC) {
-    NSLog(@"[VLCPlayer][Init] 找到 parentVC: %@", parentVC);
-    [parentVC addChildViewController:_playerViewController];
-    [_playerViewController didMoveToParentViewController:parentVC];
-  } else {
-    NSLog(@"[VLCPlayer][Init] 未找到 parentVC");
-  }
-
-  [self addSubview:_playerViewController.view];
-  _playerViewController.view.frame = self.bounds;
-  _playerViewController.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    [self addSubview:_playerViewController.view];
+    _playerViewController.view.frame = self.bounds;
+    _playerViewController.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
       
 
     [[NSNotificationCenter defaultCenter]
@@ -143,10 +142,7 @@ static NSString *const playbackRate = @"rate";
       [initTypeNum isKindOfClass:[NSNumber class]] ? [initTypeNum intValue] : 0;
 
   // 获取初始化选项
-  NSDictionary *initOptions = [source objectForKey:@"initOptions"];
-  if (initOptions && ![initOptions isKindOfClass:[NSDictionary class]]) {
-    initOptions = nil;
-  }
+  NSArray *initOptions = [source objectForKey:@"initOptions"];
 
   // 创建新的播放器实例
   @try {
@@ -154,19 +150,7 @@ static NSString *const playbackRate = @"rate";
     if (initType == 1) {
       _player = [[VLCMediaPlayer alloc] init];
     } else {
-      NSArray *options = nil;
-      if (initOptions) {
-        NSMutableArray *optionsArray = [NSMutableArray array];
-        for (NSString *key in initOptions) {
-          id value = initOptions[key];
-          if ([value isKindOfClass:[NSString class]]) {
-            [optionsArray
-                addObject:[NSString stringWithFormat:@"%@=%@", key, value]];
-          }
-        }
-        options = optionsArray;
-      }
-      _player = [[VLCMediaPlayer alloc] initWithOptions:options];
+      _player = [[VLCMediaPlayer alloc] initWithOptions:initOptions];
     }
 
     if (!_player) {
