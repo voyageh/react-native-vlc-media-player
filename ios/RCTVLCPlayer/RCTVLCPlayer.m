@@ -51,20 +51,25 @@ static NSString *const playbackRate = @"rate";
     NSLog(@"[VLCPlayer][Init] 初始化播放器视图");
     _eventDispatcher = eventDispatcher;
 
-    // 初始化视频控制器
-    _playerViewController = [[RCTVLCPlayerViewController alloc] init];
-      
-      // 获取当前的UIViewController
-      UIViewController *presentedViewController = RCTPresentedViewController();
-      if (presentedViewController) {
-          NSLog(@"[VLCPlayer][Init] 找到 Controller");
-          [presentedViewController addChildViewController:_playerViewController];
-          [_playerViewController didMoveToParentViewController:presentedViewController];
-      }
+  // 初始化视频控制器
+  _playerViewController = [[RCTVLCPlayerViewController alloc] init];
 
-      [self addSubview:_playerViewController.view];
-      _playerViewController.view.frame = self.bounds;
-      _playerViewController.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+  // 优先查找 reactViewController 作为 parent（兼容 RNSScreen）
+  UIViewController *parentVC = self.reactViewController;
+  if (!parentVC) {
+    parentVC = RCTPresentedViewController();
+  }
+  if (parentVC) {
+    NSLog(@"[VLCPlayer][Init] 找到 parentVC: %@", parentVC);
+    [parentVC addChildViewController:_playerViewController];
+    [_playerViewController didMoveToParentViewController:parentVC];
+  } else {
+    NSLog(@"[VLCPlayer][Init] 未找到 parentVC");
+  }
+
+  [self addSubview:_playerViewController.view];
+  _playerViewController.view.frame = self.bounds;
+  _playerViewController.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
       
 
     [[NSNotificationCenter defaultCenter]
